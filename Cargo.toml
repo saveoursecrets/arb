@@ -13,3 +13,4 @@ resolver = "2"
 [dev-dependencies]
 anyhow = "1"
 arb-lib = { path = "crates/lib" }
+tokio = { version = "1", features = ["macros"]}

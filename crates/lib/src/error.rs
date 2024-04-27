@@ -16,6 +16,9 @@ pub enum Error {
     #[error("no YAML documents in index file")]
     NoYamlDocuments,
 
+    #[error("no translation for {0}")]
+    NoTranslation(String),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
@@ -24,4 +27,7 @@ pub enum Error {
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    Deepl(#[from] deepl::Error),
 }

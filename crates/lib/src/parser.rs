@@ -2,7 +2,10 @@ use super::{Error, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::path::{Path, PathBuf};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 
 const ARB_DIR: &str = "arb-dir";
 const TEMPLATE_ARB_FILE: &str = "template-arb-file";
@@ -74,7 +77,7 @@ impl ArbIndex {
 }
 
 /// Content of an application resource bundle file.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ArbFileContent(IndexMap<String, Value>);
 
 impl ArbFileContent {
@@ -90,9 +93,20 @@ impl ArbFileContent {
     pub fn lookup<'a>(&'a self, key: &'a str) -> Option<ArbEntry<'a>> {
         self.0.get(key).map(|v| ArbEntry(ArbKey(key), ArbValue(v)))
     }
+
+    /// Insert a translated value.
+    pub fn insert_translation<'a>(&mut self, key: &ArbKey<'a>, text: String) {
+        self.0.insert(key.to_string(), Value::String(text));
+    }
+
+    /// Insert an entry.
+    pub fn insert_entry<'a>(&mut self, entry: ArbEntry<'a>) {
+        self.0.insert(entry.key().to_string(), entry.value().into());
+    }
 }
 
 /// Entry in an application resource bundle map.
+#[derive(Debug)]
 pub struct ArbEntry<'a>(ArbKey<'a>, ArbValue<'a>);
 
 impl<'a> ArbEntry<'a> {
@@ -116,6 +130,7 @@ impl<'a> ArbEntry<'a> {
 }
 
 /// Key in the application resource bundle map.
+#[derive(Debug)]
 pub struct ArbKey<'a>(&'a str);
 
 impl<'a> ArbKey<'a> {
@@ -133,7 +148,14 @@ impl<'a> ArbKey<'a> {
     }
 }
 
+impl<'a> fmt::Display for ArbKey<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Value in the application resource bundle map.
+#[derive(Debug)]
 pub struct ArbValue<'a>(&'a Value);
 
 impl<'a> ArbValue<'a> {
@@ -149,5 +171,11 @@ impl<'a> ArbValue<'a> {
     /// Determine if this value is translatable.
     fn is_translatable(&self) -> bool {
         matches!(self.0, Value::String(_))
+    }
+}
+
+impl<'a> From<&ArbValue<'a>> for Value {
+    fn from(value: &ArbValue<'a>) -> Self {
+        value.0.clone()
     }
 }
