@@ -57,7 +57,6 @@ impl ArbIndex {
         }
 
         let doc = &docs[0];
-
         let arb_dir = doc[ARB_DIR]
             .as_str()
             .ok_or_else(|| Error::ArbDirNotDefined(path.as_ref().to_owned()))?;

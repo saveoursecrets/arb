@@ -31,6 +31,14 @@ name = "arb"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arb-lib",
+]
+
+[[package]]
+name = "arb-lib"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
  "indexmap",
  "serde",
  "serde_json",

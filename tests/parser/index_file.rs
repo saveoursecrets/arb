@@ -1,5 +1,5 @@
 use anyhow::Result;
-use arb::ArbIndex;
+use arb_lib::ArbIndex;
 
 #[test]
 pub fn test_parse_index_with_template() -> Result<()> {
