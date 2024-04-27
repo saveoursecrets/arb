@@ -87,17 +87,68 @@ impl ArbFileContent {
             .collect()
     }
 
-    /// Lookup a value by key.
-    pub fn lookup(&self, key: &str) -> Option<ArbValue<'_>> {
-        self.0.get(key).map(ArbValue)
+    /// Lookup an entry by key.
+    pub fn lookup<'a>(&'a self, key: &'a str) -> Option<ArbEntry<'a>> {
+        self.0.get(key).map(|v| ArbEntry(ArbKey(key), ArbValue(v)))
     }
 }
 
 /// Entry in an application resource bundle map.
 pub struct ArbEntry<'a>(ArbKey<'a>, ArbValue<'a>);
 
+impl<'a> ArbEntry<'a> {
+    /// Key for the entry.
+    pub fn key(&self) -> &ArbKey<'a> {
+        &self.0
+    }
+
+    /// Value of the entry.
+    pub fn value(&self) -> &ArbValue<'a> {
+        &self.1
+    }
+
+    /// Determine if this entry is translatable.
+    ///
+    /// An entry is only translatable when the key is not prefixed
+    /// with an @ symbol and the value is of the string type.
+    pub fn is_translatable(&self) -> bool {
+        self.0.is_translatable() && self.1.is_translatable()
+    }
+}
+
 /// Key in the application resource bundle map.
-pub struct ArbKey<'a>(&'a String);
+pub struct ArbKey<'a>(&'a str);
+
+impl<'a> ArbKey<'a> {
+    /// Determine if this key is prefixed with the @ symbol.
+    ///
+    /// The @ symbol is used to declare meta data for translatable
+    /// keys (such as placeholders) or for comments.
+    pub fn is_prefixed(&self) -> bool {
+        self.0.starts_with('@')
+    }
+
+    /// Determine if this key is translatable.
+    fn is_translatable(&self) -> bool {
+        !self.is_prefixed()
+    }
+}
 
 /// Value in the application resource bundle map.
 pub struct ArbValue<'a>(&'a Value);
+
+impl<'a> ArbValue<'a> {
+    /// String reference, only available when translatable.
+    pub fn as_str(&self) -> Option<&str> {
+        if let Value::String(val) = self.0 {
+            Some(val)
+        } else {
+            None
+        }
+    }
+
+    /// Determine if this value is translatable.
+    fn is_translatable(&self) -> bool {
+        matches!(self.0, Value::String(_))
+    }
+}

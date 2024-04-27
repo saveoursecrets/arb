@@ -13,6 +13,8 @@ pub fn test_parse_index_with_template() -> Result<()> {
 
     let value = template.lookup("helloWorld");
     assert!(value.is_some());
+    assert!(value.as_ref().unwrap().is_translatable());
+    assert_eq!("Hello world", value.unwrap().value().as_str().unwrap());
 
     let value = template.lookup("nonExistent");
     assert!(value.is_none());
