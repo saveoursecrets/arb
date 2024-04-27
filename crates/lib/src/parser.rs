@@ -105,7 +105,7 @@ impl ArbFile {
         self.0.insert(entry.key().to_string(), entry.value().into());
     }
 
-    /// Attempt to location the placeholder names for a key.
+    /// Attempt to locate the placeholder names for a key.
     pub fn placeholders<'a>(&self, key: &ArbKey<'a>) -> Result<Option<Placeholders<'_>>> {
         if key.as_ref().starts_with('@') {
             return Err(Error::AlreadyPrefixed(key.to_string()));
