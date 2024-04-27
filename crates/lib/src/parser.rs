@@ -30,7 +30,7 @@ impl ArbIndex {
     }
 
     /// Load and parse the template application resource bundle.
-    pub fn template_content(&self) -> Result<ArbFileContent> {
+    pub fn template_content(&self) -> Result<ArbFile> {
         let path = self
             .parent_path()?
             .to_owned()
@@ -38,7 +38,7 @@ impl ArbIndex {
             .join(&self.template_arb_file);
 
         let content = std::fs::read_to_string(&path)?;
-        let arb: ArbFileContent = serde_json::from_str(&content)?;
+        let arb: ArbFile = serde_json::from_str(&content)?;
         Ok(arb)
     }
 
@@ -78,9 +78,9 @@ impl ArbIndex {
 
 /// Content of an application resource bundle file.
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct ArbFileContent(IndexMap<String, Value>);
+pub struct ArbFile(IndexMap<String, Value>);
 
-impl ArbFileContent {
+impl ArbFile {
     /// All of the application resource bundle entries.
     pub fn entries(&self) -> Vec<ArbEntry<'_>> {
         self.0
