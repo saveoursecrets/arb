@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
+/// Error type for the library.
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("no parent path {0}")]

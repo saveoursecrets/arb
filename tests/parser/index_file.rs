@@ -1,15 +1,21 @@
 use anyhow::Result;
-use arb::parser::ArbIndex;
+use arb::ArbIndex;
 
 #[test]
 pub fn test_parse_index_with_template() -> Result<()> {
-    let index = ArbIndex::parse_yaml("tests/fixtures/arb-index.yaml")?;
-    assert_eq!("i10n", index.arb_dir());
+    let index = ArbIndex::parse_yaml("tests/fixtures/simple-arb-index.yaml")?;
+    assert_eq!("simple-i10n", index.arb_dir());
     assert_eq!("app_en.arb", index.template_arb_file());
 
     let template = index.template_content()?;
+    let entries = template.entries();
+    assert!(!entries.is_empty());
 
-    println!("{:#?}", template);
+    let value = template.lookup("helloWorld");
+    assert!(value.is_some());
+
+    let value = template.lookup("nonExistent");
+    assert!(value.is_none());
 
     Ok(())
 }

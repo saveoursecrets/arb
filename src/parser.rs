@@ -1,6 +1,7 @@
 use super::{Error, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 const ARB_DIR: &str = "arb-dir";
@@ -75,4 +76,28 @@ impl ArbIndex {
 
 /// Content of an application resource bundle file.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ArbFileContent(IndexMap<String, serde_json::Value>);
+pub struct ArbFileContent(IndexMap<String, Value>);
+
+impl ArbFileContent {
+    /// All of the application resource bundle entries.
+    pub fn entries(&self) -> Vec<ArbEntry<'_>> {
+        self.0
+            .iter()
+            .map(|(k, v)| ArbEntry(ArbKey(k), ArbValue(v)))
+            .collect()
+    }
+
+    /// Lookup a value by key.
+    pub fn lookup(&self, key: &str) -> Option<ArbValue<'_>> {
+        self.0.get(key).map(ArbValue)
+    }
+}
+
+/// Entry in an application resource bundle map.
+pub struct ArbEntry<'a>(ArbKey<'a>, ArbValue<'a>);
+
+/// Key in the application resource bundle map.
+pub struct ArbKey<'a>(&'a String);
+
+/// Value in the application resource bundle map.
+pub struct ArbValue<'a>(&'a Value);
