@@ -1,3 +1,15 @@
 {
-  "helloWorld": "Hello world" 
+  "@@locale": "en",
+
+  "helloWorld": "Hello world",
+  "helloName": "Hello {name}",
+  "@helloName": {
+    "placeholders": {
+        "name": {
+            "type": "String"
+        }
+    }
+  },
+
+  "@_END": {}
 }
