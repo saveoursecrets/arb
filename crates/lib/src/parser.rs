@@ -106,7 +106,7 @@ impl ArbFile {
     }
 
     /// Attempt to location the placeholder names for a key.
-    pub fn placeholders<'a>(&self, key: &ArbKey<'a>) -> Result<Option<Vec<&str>>> {
+    pub fn placeholders<'a>(&self, key: &ArbKey<'a>) -> Result<Option<Placeholders<'_>>> {
         if key.as_ref().starts_with('@') {
             return Err(Error::AlreadyPrefixed(key.to_string()));
         }
@@ -116,7 +116,7 @@ impl ArbFile {
             if let Value::Object(map) = value {
                 if let Some(Value::Object(placeholders)) = map.get(PLACEHOLDERS) {
                     let keys = placeholders.keys().map(|k| &k[..]).collect::<Vec<_>>();
-                    Ok(Some(keys))
+                    Ok(Some(Placeholders::new(keys)))
                 } else {
                     Ok(None)
                 }
@@ -212,5 +212,41 @@ impl<'a> ArbValue<'a> {
 impl<'a> From<&ArbValue<'a>> for Value {
     fn from(value: &ArbValue<'a>) -> Self {
         value.0.clone()
+    }
+}
+
+/// Collection of placeholder names.
+#[derive(Debug)]
+pub struct Placeholders<'a>(Vec<&'a str>);
+
+impl<'a> Placeholders<'a> {
+    /// Create new placeholders.
+    pub fn new(names: Vec<&'a str>) -> Self {
+        Self(names)
+    }
+
+    /// Slice of placeholder names.
+    pub fn names(&self) -> &[&'a str] {
+        self.0.as_slice()
+    }
+
+    /// Convert to a vector of string slices.
+    pub fn to_vec(&self) -> Vec<&'a str> {
+        self.0.clone()
+    }
+
+    /// Verify that a source string contains all the referenced
+    /// placeholders.
+    pub fn verify(&self, source: &str) -> Result<()> {
+        for name in &self.0 {
+            let needle = format!("{{{}}}", name);
+            if !source.contains(&*needle) {
+                return Err(Error::PlaceholderNotDefined(
+                    name.to_string(),
+                    source.to_string(),
+                ));
+            }
+        }
+        Ok(())
     }
 }

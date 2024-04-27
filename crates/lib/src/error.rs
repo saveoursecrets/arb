@@ -22,6 +22,9 @@ pub enum Error {
     #[error("key '{0}' is already prefixed with an @ symbol")]
     AlreadyPrefixed(String),
 
+    #[error("placeholder '{0}' is declared but does not exist in source '{1}'")]
+    PlaceholderNotDefined(String, String),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 

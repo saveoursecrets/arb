@@ -1,5 +1,5 @@
 use super::{Error, Result};
-use crate::{ArbFile, ArbIndex};
+use crate::{ArbEntry, ArbFile, ArbIndex};
 use deepl::{DeepLApi, Lang};
 use std::path::{Path, PathBuf};
 
@@ -27,20 +27,67 @@ pub async fn translate(api: DeepLApi, options: TranslationOptions) -> Result<Arb
     let mut output = ArbFile::default();
     for entry in entries {
         if entry.is_translatable() {
-            tracing::info!(key = %entry.key(), "translate");
+            let placeholders = template.placeholders(entry.key())?;
+            tracing::info!(
+              key = %entry.key(), placeholders = ?placeholders, "translate");
+
             let text = entry.value().as_str().unwrap();
-            let result = api
-                .translate_text(text, options.target_lang.clone())
-                .await?;
-            let mut sentences = result.translations;
-            if sentences.is_empty() {
-                return Err(Error::NoTranslation(entry.key().to_string()));
-            }
-            let sentence = sentences.remove(0);
-            output.insert_translation(entry.key(), sentence.text);
+
+            // Verify the source placeholders are declared correctly
+            let names = if let Some(placeholders) = &placeholders {
+                placeholders.verify(text)?;
+
+                let text = placeholders.names().join(",");
+                let translated = translate_single_sentence(&api, &entry, &text, &options).await?;
+
+                Some(
+                    translated
+                        .split(",")
+                        .map(|s| s.to_owned())
+                        .collect::<Vec<String>>(),
+                )
+            } else {
+                None
+            };
+
+            let translated = translate_single_sentence(&api, &entry, text, &options).await?;
+
+            let translation = if let Some(names) = names {
+                let mut translation = String::new();
+                for (index, name) in names.into_iter().enumerate() {
+                    let needle = format!("{{{}}}", name);
+                    let original = format!(
+                        "{{{}}}",
+                        placeholders.as_ref().unwrap().names().get(index).unwrap()
+                    );
+                    translation = translated.replace(&needle, &original);
+                }
+                translation
+            } else {
+                translated
+            };
+
+            output.insert_translation(entry.key(), translation);
         } else {
             output.insert_entry(entry);
         }
     }
     Ok(output)
+}
+
+async fn translate_single_sentence(
+    api: &DeepLApi,
+    entry: &ArbEntry<'_>,
+    text: &str,
+    options: &TranslationOptions,
+) -> Result<String> {
+    let result = api
+        .translate_text(text, options.target_lang.clone())
+        .await?;
+    let mut sentences = result.translations;
+    if sentences.is_empty() {
+        return Err(Error::NoTranslation(entry.key().to_string()));
+    }
+    let sentence = sentences.remove(0);
+    Ok(sentence.text)
 }

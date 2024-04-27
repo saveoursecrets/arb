@@ -21,7 +21,7 @@ pub fn parse_index_with_template() -> Result<()> {
 
     let key_name = ArbKey::new("helloName");
     let placeholders = template.placeholders(&key_name)?;
-    assert_eq!(placeholders.unwrap(), vec!["name"]);
+    assert_eq!(placeholders.unwrap().to_vec(), vec!["name"]);
 
     Ok(())
 }
