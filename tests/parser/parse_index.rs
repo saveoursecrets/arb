@@ -1,5 +1,5 @@
 use anyhow::Result;
-use arb_lib::ArbIndex;
+use arb_lib::{ArbIndex, ArbKey};
 
 #[test]
 pub fn parse_index_with_template() -> Result<()> {
@@ -18,6 +18,10 @@ pub fn parse_index_with_template() -> Result<()> {
 
     let value = template.lookup("nonExistent");
     assert!(value.is_none());
+
+    let key_name = ArbKey::new("helloName");
+    let placeholders = template.placeholders(&key_name)?;
+    assert_eq!(placeholders.unwrap(), vec!["name"]);
 
     Ok(())
 }

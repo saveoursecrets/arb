@@ -9,6 +9,7 @@ use std::{
 
 const ARB_DIR: &str = "arb-dir";
 const TEMPLATE_ARB_FILE: &str = "template-arb-file";
+const PLACEHOLDERS: &str = "placeholders";
 
 /// Internationalization index file.
 #[derive(Debug)]
@@ -56,7 +57,7 @@ impl ArbIndex {
         let docs = YamlLoader::load_from_str(&content)?;
 
         if docs.is_empty() {
-            return Err(Error::NoYamlDocuments);
+            return Err(Error::NoYamlDocuments(path.as_ref().to_owned()));
         }
 
         let doc = &docs[0];
@@ -103,6 +104,29 @@ impl ArbFile {
     pub fn insert_entry<'a>(&mut self, entry: ArbEntry<'a>) {
         self.0.insert(entry.key().to_string(), entry.value().into());
     }
+
+    /// Attempt to location the placeholder names for a key.
+    pub fn placeholders<'a>(&self, key: &ArbKey<'a>) -> Result<Option<Vec<&str>>> {
+        if key.as_ref().starts_with('@') {
+            return Err(Error::AlreadyPrefixed(key.to_string()));
+        }
+
+        let meta_key = format!("@{}", key.as_ref());
+        if let Some(value) = self.0.get(&meta_key) {
+            if let Value::Object(map) = value {
+                if let Some(Value::Object(placeholders)) = map.get(PLACEHOLDERS) {
+                    let keys = placeholders.keys().map(|k| &k[..]).collect::<Vec<_>>();
+                    Ok(Some(keys))
+                } else {
+                    Ok(None)
+                }
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 /// Entry in an application resource bundle map.
@@ -134,6 +158,11 @@ impl<'a> ArbEntry<'a> {
 pub struct ArbKey<'a>(&'a str);
 
 impl<'a> ArbKey<'a> {
+    /// Create a new key.
+    pub fn new(key: &'a str) -> Self {
+        Self(key)
+    }
+
     /// Determine if this key is prefixed with the @ symbol.
     ///
     /// The @ symbol is used to declare meta data for translatable
@@ -145,6 +174,12 @@ impl<'a> ArbKey<'a> {
     /// Determine if this key is translatable.
     fn is_translatable(&self) -> bool {
         !self.is_prefixed()
+    }
+}
+
+impl<'a> AsRef<str> for ArbKey<'a> {
+    fn as_ref(&self) -> &str {
+        self.0
     }
 }
 
