@@ -3,6 +3,13 @@ name = "arb"
 version = "0.1.0"
 edition = "2021"
 description = "Localize flutter apps with DeepL AI translations"
+homepage = "https://saveoursecrets.com"
+license = "MIT OR Apache-2.0"
+authors = ["saveoursecrets-developers <dev@saveoursecrets.com>"]
+default-run = "arb"
+categories = [
+  "command-line-utilities",
+]
 
 [workspace]
 members = [
