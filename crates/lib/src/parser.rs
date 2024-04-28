@@ -44,7 +44,7 @@ impl ArbIndex {
     }
 
     /// Compute the parent of the index file.
-    fn parent_path(&self) -> Result<&Path> {
+    pub fn parent_path(&self) -> Result<&Path> {
         self.file_path
             .parent()
             .ok_or_else(|| Error::NoParentPath(self.file_path.clone()))

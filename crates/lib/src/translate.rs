@@ -8,8 +8,12 @@ use std::{
 
 /// Options for translation.
 pub struct TranslationOptions {
-    index_file: PathBuf,
-    target_lang: Lang,
+    /// YAML localization index file.
+    pub index_file: PathBuf,
+    /// Target language.
+    pub target_lang: Lang,
+    /// Whether this is a dry run.
+    pub dry_run: bool,
 }
 
 impl TranslationOptions {
@@ -18,12 +22,23 @@ impl TranslationOptions {
         Self {
             index_file: path.as_ref().to_path_buf(),
             target_lang,
+            dry_run: true,
         }
     }
 }
 
+/// Translate result.
+pub struct TranslateResult {
+    /// Localizations index.
+    pub index: ArbIndex,
+    /// Template information.
+    pub template: ArbFile,
+    /// Translated content.
+    pub translated: ArbFile,
+}
+
 /// Translate to a target language.
-pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<ArbFile> {
+pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<TranslateResult> {
     let index = ArbIndex::parse_yaml(&options.index_file)?;
     let template = index.template_content()?;
     let entries = template.entries();
@@ -32,7 +47,9 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Arb
         if entry.is_translatable() {
             let placeholders = template.placeholders(entry.key())?;
             tracing::info!(
-              key = %entry.key(), placeholders = ?placeholders, "translate");
+              key = %entry.key(),
+              placeholders = ?placeholders,
+              "translate");
 
             let text = entry.value().as_str().unwrap();
 
@@ -56,28 +73,36 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Arb
                 Cow::Borrowed(text)
             };
 
-            let translated =
-                translate_single_sentence(&api, &entry, text.as_ref(), &options).await?;
+            if !options.dry_run {
+                let translated =
+                    translate_single_sentence(&api, &entry, text.as_ref(), &options).await?;
 
-            // Revert placeholder XML tags
-            let translation = if let Some(names) = names {
-                let mut translation = translated;
-                for name in names.into_iter() {
-                    let needle = format!("<ph>{}</ph>", name);
-                    let original = format!("{{{}}}", name);
-                    translation = translation.replacen(&needle, &original, 1);
-                }
-                translation
+                // Revert placeholder XML tags
+                let translation = if let Some(names) = names {
+                    let mut translation = translated;
+                    for name in names.into_iter() {
+                        let needle = format!("<ph>{}</ph>", name);
+                        let original = format!("{{{}}}", name);
+                        translation = translation.replacen(&needle, &original, 1);
+                    }
+                    translation
+                } else {
+                    translated
+                };
+
+                output.insert_translation(entry.key(), translation);
             } else {
-                translated
-            };
-
-            output.insert_translation(entry.key(), translation);
+                output.insert_entry(entry);
+            }
         } else {
             output.insert_entry(entry);
         }
     }
-    Ok(output)
+    Ok(TranslateResult {
+        index,
+        template,
+        translated: output,
+    })
 }
 
 async fn translate_single_sentence(

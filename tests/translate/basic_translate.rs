@@ -11,7 +11,7 @@ pub async fn basic_translate() -> Result<()> {
     ));
     let index = "tests/fixtures/simple-arb-index.yaml";
     let options = TranslationOptions::new(index, Lang::Fr);
-    let translated = translate(api, options).await?;
-    println!("{:#?}", translated);
+    let result = translate(api, options).await?;
+    println!("{:#?}", result.translated);
     Ok(())
 }
