@@ -1,5 +1,5 @@
 use arb_lib::{
-    deepl::{ApiOptions, DeeplApi, Lang},
+    deepl::{ApiOptions, DeeplApi, Lang, LanguageType},
     translate, TranslationOptions,
 };
 use clap::{Parser, Subcommand};
@@ -53,6 +53,19 @@ pub enum Command {
         /// Use DeepL API pro endpoint.
         #[clap(short, long)]
         pro: bool,
+    },
+    /// Print supported languages.
+    Languages {
+        /// Target language.
+        #[clap(short, long, hide_env_values = true, env = "DEEPL_API_KEY")]
+        api_key: String,
+
+        /// Use DeepL API pro endpoint.
+        #[clap(short, long)]
+        pro: bool,
+        /// Language type (source or target).
+        #[clap(short, long, default_value = "source")]
+        language_type: LanguageType,
     },
 }
 
@@ -115,6 +128,21 @@ pub async fn main() -> anyhow::Result<()> {
             let api = DeeplApi::new(options);
             let usage = api.usage().await?;
             serde_json::to_writer_pretty(std::io::stdout(), &usage)?;
+            println!();
+        }
+        Command::Languages {
+            api_key,
+            pro,
+            language_type,
+        } => {
+            let options = if pro {
+                ApiOptions::new_pro(api_key)
+            } else {
+                ApiOptions::new_free(api_key)
+            };
+            let api = DeeplApi::new(options);
+            let langs = api.languages(language_type).await?;
+            serde_json::to_writer_pretty(std::io::stdout(), &langs)?;
             println!();
         }
     }

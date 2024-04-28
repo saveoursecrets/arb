@@ -1,7 +1,7 @@
-use crate::{Lang, Result};
+use crate::{Error, Lang, Result};
 use reqwest::{Client, RequestBuilder};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 use url::Url;
 
 const ENDPOINT_FREE: &str = "https://api-free.deepl.com";
@@ -51,11 +51,12 @@ pub struct Language {
     /// Language name.
     pub name: String,
     /// Whether the language supports formality.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supports_formality: Option<bool>,
 }
 
 /// Enumeration of language types.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Copy, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum LanguageType {
     /// Source language.
@@ -77,6 +78,18 @@ impl AsRef<str> for LanguageType {
 impl fmt::Display for LanguageType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_ref(),)
+    }
+}
+
+impl FromStr for LanguageType {
+    type Err = Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match s {
+            "source" => Self::Source,
+            "target" => Self::Target,
+            _ => return Err(Error::InvalidLanguageType(s.to_string())),
+        })
     }
 }
 
