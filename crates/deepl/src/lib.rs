@@ -2,7 +2,9 @@ mod api;
 mod error;
 mod lang;
 
-pub use api::{ApiOptions, DeeplApi, TagHandling, TranslateTextRequest, TranslateTextResponse};
+pub use api::{
+    ApiOptions, DeeplApi, TagHandling, TranslateTextRequest, TranslateTextResponse, Usage,
+};
 pub use error::Error;
 pub use lang::Lang;
 

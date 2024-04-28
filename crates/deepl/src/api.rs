@@ -6,6 +6,16 @@ use url::Url;
 const ENDPOINT_FREE: &str = "https://api-free.deepl.com";
 const ENDPOINT_PRO: &str = "https://api.deepl.com";
 
+/// Account usage information.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Usage {
+    /// Character count.
+    pub character_count: u64,
+    /// Character limit.
+    pub character_limit: u64,
+}
+
+/// Variants for tag handling.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TagHandling {
@@ -130,6 +140,13 @@ impl DeeplApi {
             client: options.client.take().unwrap_or_else(|| Client::new()),
             options,
         }
+    }
+
+    /// Get account usage.
+    pub async fn usage(&self) -> Result<Usage> {
+        let url = self.options.endpoint.join("v2/usage")?;
+        let req = self.client.get(url);
+        self.make_typed_request::<Usage>(req).await
     }
 
     /// Translate text.

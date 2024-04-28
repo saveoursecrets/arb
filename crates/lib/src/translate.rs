@@ -59,6 +59,7 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Arb
             let translated =
                 translate_single_sentence(&api, &entry, text.as_ref(), &options).await?;
 
+            // Revert placeholder XML tags
             let translation = if let Some(names) = names {
                 let mut translation = translated;
                 for name in names.into_iter() {
