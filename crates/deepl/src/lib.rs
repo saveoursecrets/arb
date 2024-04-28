@@ -3,8 +3,8 @@ mod error;
 mod lang;
 
 pub use api::{
-    ApiOptions, DeeplApi, Language, LanguageType, TagHandling, TranslateTextRequest,
-    TranslateTextResponse, Usage,
+    ApiOptions, DeeplApi, Formality, Language, LanguageType, SplitSentences, TagHandling,
+    TranslateTextRequest, TranslateTextResponse, Usage,
 };
 pub use error::Error;
 pub use lang::Lang;

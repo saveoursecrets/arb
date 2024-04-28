@@ -7,6 +7,40 @@ use url::Url;
 const ENDPOINT_FREE: &str = "https://api-free.deepl.com";
 const ENDPOINT_PRO: &str = "https://api.deepl.com";
 
+/// Enumeration of split sentence options.
+// FIXME: correct serde impl
+#[derive(Debug, Serialize, Deserialize)]
+pub enum SplitSentences {
+    /// Do not split sentences.
+    None,
+    /// Split on punctuation and newlines.
+    ///
+    /// Default for XML tag handling.
+    One,
+    /// Split on punctuation only.
+    ///
+    /// Default for HTML tag handling.
+    NoNewlines,
+}
+
+/// Variants for formality.
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub enum Formality {
+    /// Default formality.
+    #[default]
+    Default,
+    /// For a more formal language.
+    More,
+    /// For a more informal language.
+    Less,
+    /// For a more formal language if available,
+    /// otherwise fallback to default formality.
+    PreferMore,
+    /// For a more informal language if available,
+    /// otherwise fallback to default formality.
+    PreferLess,
+}
+
 /// Supported language information.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Language {
@@ -106,6 +140,12 @@ pub struct TranslateTextRequest {
     /// Ignore tags.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ignore_tags: Option<Vec<String>>,
+    /// Formality.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub formality: Option<Formality>,
+    /// Split sentences.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub split_sentences: Option<SplitSentences>,
 }
 
 impl TranslateTextRequest {
@@ -123,6 +163,8 @@ impl TranslateTextRequest {
             splitting_tags: None,
             ignore_tags: None,
             tag_handling: None,
+            formality: None,
+            split_sentences: None,
         }
     }
 }
