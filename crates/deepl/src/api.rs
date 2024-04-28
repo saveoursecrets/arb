@@ -1,6 +1,6 @@
-use crate::{Error, Lang, Result};
+use crate::{Lang, Result};
 use reqwest::{Client, RequestBuilder};
-use serde::{de::DeserializeOwned, ser::Serializer, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fmt;
 use url::Url;
 
@@ -93,9 +93,9 @@ pub struct Usage {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TagHandling {
-    // XML tag handling.
+    /// XML tag handling.
     Xml,
-    // HTML tag handling.
+    /// HTML tag handling.
     Html,
 }
 

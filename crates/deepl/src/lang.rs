@@ -6,39 +6,73 @@ use std::{fmt, str::FromStr};
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum Lang {
+    /// Arabic.
     Ar,
+    /// Bulgarian.
     Bg,
+    /// Czech.
     Cs,
+    /// Danish.
     Da,
+    /// German.
     De,
+    /// Greek.
     El,
+    /// English.
     En,
+    /// English (British)
     EnGb,
+    /// English (American)
     EnUs,
+    /// Spanish
     Es,
+    /// Estonian
     Et,
+    /// Finnish
     Fi,
+    /// French.
     Fr,
+    /// Hungarian.
     Hu,
+    /// Indonesian.
     Id,
+    /// Italian.
     It,
+    /// Japanese.
     Ja,
+    /// Korean.
     Ko,
+    /// Lithuanian.
     Lt,
+    /// Latvian.
     Lv,
+    /// Norwegian.
     Nb,
+    /// Dutch.
     Nl,
+    /// Polish.
     Pl,
+    /// Portuguese (all varieties mixed).
     Pt,
+    /// Portuguese (Brazilian).
     PtBr,
+    /// Portuguese (all Portuguese varieties excluding Brazilian Portuguese).
     PtPt,
+    /// Romanian.
     Ro,
+    /// Russian.
     Ru,
+    /// Slovak.
     Sk,
+    /// Slovenian.
     Sl,
+    /// Swedish.
     Sv,
+    /// Turkish.
     Tr,
+    /// Ukrainian.
     Uk,
+    /// Chinese.
     Zh,
 }
 
