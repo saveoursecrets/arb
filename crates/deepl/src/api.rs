@@ -1,10 +1,48 @@
 use crate::{Error, Lang, Result};
 use reqwest::{Client, RequestBuilder};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::fmt;
 use url::Url;
 
 const ENDPOINT_FREE: &str = "https://api-free.deepl.com";
 const ENDPOINT_PRO: &str = "https://api.deepl.com";
+
+/// Supported language information.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Language {
+    /// Language code.
+    pub language: Lang,
+    /// Language name.
+    pub name: String,
+    /// Whether the language supports formality.
+    pub supports_formality: Option<bool>,
+}
+
+/// Enumeration of language types.
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LanguageType {
+    /// Source language.
+    #[default]
+    Source,
+    /// Target language.
+    Target,
+}
+
+impl AsRef<str> for LanguageType {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Source => "source",
+            Self::Target => "target",
+        }
+    }
+}
+
+impl fmt::Display for LanguageType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_ref(),)
+    }
+}
 
 /// Account usage information.
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,7 +79,6 @@ pub struct TranslateTextRequest {
     pub text: Vec<String>,
     /// Target language.
     pub target_lang: Lang,
-
     /// Tag handling.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tag_handling: Option<TagHandling>,
@@ -147,6 +184,15 @@ impl DeeplApi {
         let url = self.options.endpoint.join("v2/usage")?;
         let req = self.client.get(url);
         self.make_typed_request::<Usage>(req).await
+    }
+
+    /// Fetch supported languages.
+    pub async fn languages(&self, lang_type: LanguageType) -> Result<Vec<Language>> {
+        let mut url = self.options.endpoint.join("v2/languages")?;
+        url.query_pairs_mut()
+            .append_pair("type", lang_type.as_ref());
+        let req = self.client.get(url);
+        self.make_typed_request::<Vec<Language>>(req).await
     }
 
     /// Translate text.
