@@ -10,8 +10,11 @@ cargo install arb
 
 ## Usage
 
+Convert all the strings from the template language into French and write the translations to `app_fr.arb`:
+
 ```
-arb translate --lang fr --write l10n.yaml
+export DEEPL_API_KEY="<api key>"
+arb translate --lang fr --pro --write l10n.yaml
 ```
 
 ## License
