@@ -1,7 +1,10 @@
 use super::{Error, Result};
 use crate::{ArbEntry, ArbFile, ArbIndex};
-use deepl::{DeeplApi, Lang, TranslateTextRequest};
-use std::path::{Path, PathBuf};
+use deepl::{DeeplApi, Lang, TagHandling, TranslateTextRequest};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 
 /// Options for translation.
 pub struct TranslationOptions {
@@ -36,31 +39,32 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Arb
             // Verify the source placeholders are declared correctly
             let names = if let Some(placeholders) = &placeholders {
                 placeholders.verify(text)?;
-
-                let text = placeholders.names().join(",");
-                let translated = translate_single_sentence(&api, &entry, &text, &options).await?;
-
-                Some(
-                    translated
-                        .split(",")
-                        .map(|s| s.to_owned())
-                        .collect::<Vec<String>>(),
-                )
+                Some(placeholders.to_vec())
             } else {
                 None
             };
 
-            let translated = translate_single_sentence(&api, &entry, text, &options).await?;
+            // Replace placeholders with XML tags
+            let text = if let Some(names) = &names {
+                let mut text = text.to_string();
+                for name in names {
+                    text =
+                        text.replacen(&format!("{{{}}}", name), &format!("<ph>{}</ph>", name), 1);
+                }
+                Cow::Owned(text)
+            } else {
+                Cow::Borrowed(text)
+            };
+
+            let translated =
+                translate_single_sentence(&api, &entry, text.as_ref(), &options).await?;
 
             let translation = if let Some(names) = names {
-                let mut translation = String::new();
-                for (index, name) in names.into_iter().enumerate() {
-                    let needle = format!("{{{}}}", name);
-                    let original = format!(
-                        "{{{}}}",
-                        placeholders.as_ref().unwrap().names().get(index).unwrap()
-                    );
-                    translation = translated.replace(&needle, &original);
+                let mut translation = translated;
+                for name in names.into_iter() {
+                    let needle = format!("<ph>{}</ph>", name);
+                    let original = format!("{{{}}}", name);
+                    translation = translation.replacen(&needle, &original, 1);
                 }
                 translation
             } else {
@@ -81,7 +85,9 @@ async fn translate_single_sentence(
     text: &str,
     options: &TranslationOptions,
 ) -> Result<String> {
-    let request = TranslateTextRequest::new(vec![text.to_string()], options.target_lang);
+    let mut request = TranslateTextRequest::new(vec![text.to_string()], options.target_lang);
+    request.tag_handling = Some(TagHandling::Xml);
+    request.ignore_tags = Some(vec!["ph".to_string()]);
     let result = api.translate_text(&request).await?;
     let mut sentences = result.translations;
     if sentences.is_empty() {

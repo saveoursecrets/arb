@@ -6,6 +6,15 @@ use url::Url;
 const ENDPOINT_FREE: &str = "https://api-free.deepl.com";
 const ENDPOINT_PRO: &str = "https://api.deepl.com";
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TagHandling {
+    // XML tag handling.
+    Xml,
+    // HTML tag handling.
+    Html,
+}
+
 /// Single text translation.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TextTranslation {
@@ -22,6 +31,10 @@ pub struct TranslateTextRequest {
     pub text: Vec<String>,
     /// Target language.
     pub target_lang: Lang,
+
+    /// Tag handling.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag_handling: Option<TagHandling>,
     /// Source language.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_lang: Option<Lang>,
@@ -62,6 +75,7 @@ impl TranslateTextRequest {
             non_splitting_tags: None,
             splitting_tags: None,
             ignore_tags: None,
+            tag_handling: None,
         }
     }
 }
