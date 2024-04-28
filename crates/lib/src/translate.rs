@@ -1,6 +1,6 @@
 use super::{Error, Result};
 use crate::{ArbEntry, ArbFile, ArbIndex};
-use deepl::{DeepLApi, Lang};
+use deepl::{DeeplApi, Lang, TranslateTextRequest};
 use std::path::{Path, PathBuf};
 
 /// Options for translation.
@@ -20,7 +20,7 @@ impl TranslationOptions {
 }
 
 /// Translate to a target language.
-pub async fn translate(api: DeepLApi, options: TranslationOptions) -> Result<ArbFile> {
+pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<ArbFile> {
     let index = ArbIndex::parse_yaml(&options.index_file)?;
     let template = index.template_content()?;
     let entries = template.entries();
@@ -76,14 +76,13 @@ pub async fn translate(api: DeepLApi, options: TranslationOptions) -> Result<Arb
 }
 
 async fn translate_single_sentence(
-    api: &DeepLApi,
+    api: &DeeplApi,
     entry: &ArbEntry<'_>,
     text: &str,
     options: &TranslationOptions,
 ) -> Result<String> {
-    let result = api
-        .translate_text(text, options.target_lang.clone())
-        .await?;
+    let request = TranslateTextRequest::new(vec![text.to_string()], options.target_lang);
+    let result = api.translate_text(&request).await?;
     let mut sentences = result.translations;
     if sentences.is_empty() {
         return Err(Error::NoTranslation(entry.key().to_string()));

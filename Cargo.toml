@@ -13,6 +13,7 @@ categories = [
 
 [workspace]
 members = [ "crates/deepl",
+  "crates/deepl",
   "crates/lib"
 ]
 resolver = "2"
