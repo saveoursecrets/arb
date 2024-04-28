@@ -15,6 +15,7 @@ pub struct Arb {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Translate to a language.
+    #[clap(alias = "tl")]
     Translate {
         /// Target language.
         #[clap(short, long, hide_env_values = true, env = "DEEPL_API_KEY")]
@@ -42,6 +43,16 @@ pub enum Command {
 
         /// Localization YAML file.
         file: PathBuf,
+    },
+    /// Print account usage.
+    Usage {
+        /// Target language.
+        #[clap(short, long, hide_env_values = true, env = "DEEPL_API_KEY")]
+        api_key: String,
+
+        /// Use DeepL API pro endpoint.
+        #[clap(short, long)]
+        pro: bool,
     },
 }
 
@@ -94,6 +105,17 @@ pub async fn main() -> anyhow::Result<()> {
             } else {
                 serde_json::to_writer_pretty(std::io::stdout(), &result.translated)?;
             }
+        }
+        Command::Usage { api_key, pro } => {
+            let options = if pro {
+                ApiOptions::new_pro(api_key)
+            } else {
+                ApiOptions::new_free(api_key)
+            };
+            let api = DeeplApi::new(options);
+            let usage = api.usage().await?;
+            serde_json::to_writer_pretty(std::io::stdout(), &usage)?;
+            println!();
         }
     }
     Ok(())
