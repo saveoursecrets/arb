@@ -1,6 +1,6 @@
 use crate::{Error, Lang, Result};
 use reqwest::{Client, RequestBuilder};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, ser::Serializer, Deserialize, Serialize};
 use std::fmt;
 use url::Url;
 
@@ -8,18 +8,20 @@ const ENDPOINT_FREE: &str = "https://api-free.deepl.com";
 const ENDPOINT_PRO: &str = "https://api.deepl.com";
 
 /// Enumeration of split sentence options.
-// FIXME: correct serde impl
 #[derive(Debug, Serialize, Deserialize)]
 pub enum SplitSentences {
     /// Do not split sentences.
+    #[serde(rename = "0")]
     None,
     /// Split on punctuation and newlines.
     ///
     /// Default for XML tag handling.
+    #[serde(rename = "1")]
     One,
     /// Split on punctuation only.
     ///
     /// Default for HTML tag handling.
+    #[serde(rename = "nonewlines")]
     NoNewlines,
 }
 
