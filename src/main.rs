@@ -100,19 +100,13 @@ pub async fn main() -> anyhow::Result<()> {
                 index_file: file,
                 target_lang: lang,
                 dry_run,
+                name_prefix,
             };
             let result = translate(api, options).await?;
 
             if write && !dry_run {
-                let output_file = format!(
-                    "{}_{}.arb",
-                    name_prefix,
-                    lang.to_string().to_lowercase().replace("-", "_")
-                );
-                let file_path = result.index.parent_path()?.join(output_file);
-
                 let content = serde_json::to_string_pretty(&result.translated)?;
-
+                let file_path = result.index.file_path(lang)?;
                 tracing::info!(path = %file_path.display(), "write file");
                 std::fs::write(&file_path, &content)?;
             } else {

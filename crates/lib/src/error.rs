@@ -4,6 +4,9 @@ use thiserror::Error;
 /// Error type for the library.
 #[derive(Debug, Error)]
 pub enum Error {
+    /// File does not exist.
+    #[error("file '{0}' does not exist")]
+    NoFile(PathBuf),
     /// Path has not parent.
     #[error("no parent for path '{0}'")]
     NoParentPath(PathBuf),

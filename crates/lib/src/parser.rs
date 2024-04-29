@@ -1,4 +1,5 @@
 use super::{Error, Result};
+use deepl::Lang;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -17,6 +18,7 @@ pub struct ArbIndex {
     file_path: PathBuf,
     arb_dir: String,
     template_arb_file: String,
+    name_prefix: String,
 }
 
 impl ArbIndex {
@@ -39,8 +41,7 @@ impl ArbIndex {
             .join(&self.template_arb_file);
 
         let content = std::fs::read_to_string(&path)?;
-        let arb: ArbFile = serde_json::from_str(&content)?;
-        Ok(arb)
+        Ok(serde_json::from_str(&content)?)
     }
 
     /// Compute the parent of the index file.
@@ -51,7 +52,7 @@ impl ArbIndex {
     }
 
     /// Parse a YAML index file.
-    pub fn parse_yaml(path: impl AsRef<Path>) -> Result<Self> {
+    pub fn parse_yaml(path: impl AsRef<Path>, name_prefix: impl AsRef<str>) -> Result<Self> {
         use yaml_rust2::YamlLoader;
         let content = std::fs::read_to_string(path.as_ref())?;
         let docs = YamlLoader::load_from_str(&content)?;
@@ -73,7 +74,34 @@ impl ArbIndex {
             file_path: path.as_ref().to_owned(),
             arb_dir: arb_dir.to_owned(),
             template_arb_file: template_arb_file.to_owned(),
+            name_prefix: name_prefix.as_ref().to_string(),
         })
+    }
+
+    /// Path to a language file.
+    pub fn file_path(&self, lang: Lang) -> Result<PathBuf> {
+        let output_file = format!(
+            "{}_{}.arb",
+            self.name_prefix,
+            lang.to_string().to_lowercase().replace("-", "_")
+        );
+        Ok(self.parent_path()?.join(output_file))
+    }
+
+    /// Load a language file from disc.
+    pub fn load(&self, lang: Lang) -> Result<ArbFile> {
+        let path = self.file_path(lang)?;
+        if !path.try_exists()? {
+            return Err(Error::NoFile(path));
+        }
+        let content = std::fs::read_to_string(&path)?;
+        Ok(serde_json::from_str(&content)?)
+    }
+
+    /// Load a language file if it exists otherwise use an
+    /// empty file.
+    pub fn load_or_default(&self, lang: Lang) -> Result<ArbFile> {
+        Ok(self.load(lang).ok().unwrap_or_default())
     }
 }
 

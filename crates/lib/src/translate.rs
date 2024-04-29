@@ -14,6 +14,9 @@ pub struct TranslationOptions {
     pub target_lang: Lang,
     /// Whether this is a dry run.
     pub dry_run: bool,
+
+    /// Prefix for localization file names.
+    pub name_prefix: String,
 }
 
 impl TranslationOptions {
@@ -23,6 +26,7 @@ impl TranslationOptions {
             index_file: path.as_ref().to_path_buf(),
             target_lang,
             dry_run: false,
+            name_prefix: "app".to_string(),
         }
     }
 }
@@ -49,11 +53,14 @@ enum CachedEntry<'a> {
 }
 
 /// Translate to a target language.
+///
+/// Placeholders are converted to XML tags and ignored from
+/// translation to preserve the placeholder names.
 pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<TranslateResult> {
-    let index = ArbIndex::parse_yaml(&options.index_file)?;
+    let index = ArbIndex::parse_yaml(&options.index_file, &options.name_prefix)?;
     let template = index.template_content()?;
     let entries = template.entries();
-    let mut output = ArbFile::default();
+    let mut output = index.load_or_default(options.target_lang)?;
     let mut cached = Vec::new();
     let mut translatable = Vec::new();
 
