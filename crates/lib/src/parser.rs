@@ -4,6 +4,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
+    collections::HashSet,
     fmt,
     path::{Path, PathBuf},
 };
@@ -105,6 +106,17 @@ impl ArbIndex {
     }
 }
 
+/// Diff between two files.
+#[derive(Debug)]
+pub struct FileDiff<'a> {
+    /// Set of keys added to the left hand side
+    /// not present in the right hand side.
+    pub added: HashSet<&'a str>,
+    /// Set of keys in the right hand side that
+    /// no longer exist in the left hand side.
+    pub removed: HashSet<&'a str>,
+}
+
 /// Content of an application resource bundle file.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ArbFile(IndexMap<String, Value>);
@@ -133,6 +145,11 @@ impl ArbFile {
         self.0.insert(entry.key().to_string(), entry.value().into());
     }
 
+    /// Remove an entry.
+    pub fn remove(&mut self, key: &str) {
+        self.0.remove(key);
+    }
+
     /// Attempt to locate the placeholder names for a key.
     pub fn placeholders<'a>(&self, key: &ArbKey<'a>) -> Result<Option<Placeholders<'_>>> {
         if key.as_ref().starts_with('@') {
@@ -154,6 +171,15 @@ impl ArbFile {
         } else {
             Ok(None)
         }
+    }
+
+    /// Get a diff of keys between files.
+    pub fn diff<'a>(&'a self, other: &'a ArbFile) -> FileDiff {
+        let lhs = self.0.keys().collect::<HashSet<_>>();
+        let rhs = other.0.keys().collect::<HashSet<_>>();
+        let added = lhs.difference(&rhs).map(|s| &s[..]).collect::<HashSet<_>>();
+        let removed = rhs.difference(&lhs).map(|s| &s[..]).collect::<HashSet<_>>();
+        FileDiff { added, removed }
     }
 }
 
@@ -182,7 +208,7 @@ impl<'a> ArbEntry<'a> {
 }
 
 /// Key in the application resource bundle map.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct ArbKey<'a>(&'a str);
 
 impl<'a> ArbKey<'a> {
@@ -218,7 +244,7 @@ impl<'a> fmt::Display for ArbKey<'a> {
 }
 
 /// Value in the application resource bundle map.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ArbValue<'a>(&'a Value);
 
 impl<'a> ArbValue<'a> {
@@ -240,6 +266,12 @@ impl<'a> ArbValue<'a> {
 impl<'a> From<&ArbValue<'a>> for Value {
     fn from(value: &ArbValue<'a>) -> Self {
         value.0.clone()
+    }
+}
+
+impl<'a> From<&'a Value> for ArbValue<'a> {
+    fn from(value: &'a Value) -> Self {
+        ArbValue(value)
     }
 }
 

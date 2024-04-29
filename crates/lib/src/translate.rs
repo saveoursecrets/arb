@@ -44,10 +44,14 @@ pub struct TranslateResult {
 #[derive(Debug)]
 enum CachedEntry<'a> {
     /// Entry to passthrough to the output.
+    ///
+    /// Typically used for meta data or comments prefixed
+    /// with the @ symbol.
     Entry(ArbEntry<'a>),
     /// Entry to translate.
     Translate {
         entry: ArbEntry<'a>,
+        /// Names of the placeholders.
         names: Option<Vec<&'a str>>,
     },
 }
@@ -63,14 +67,23 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
     let mut output = index.load_or_default(options.target_lang)?;
     let mut cached = Vec::new();
     let mut translatable = Vec::new();
+    let mut diff = template.diff(&output);
 
     for entry in entries {
+        // Ignore if removed or not in the set of added keys.
+        //
+        // TODO: handle invalidation here
+        if diff.removed.contains(entry.key().as_ref()) || !diff.added.contains(entry.key().as_ref())
+        {
+            continue;
+        }
+
         if entry.is_translatable() {
             let placeholders = template.placeholders(entry.key())?;
             tracing::info!(
               key = %entry.key(),
               placeholders = ?placeholders,
-              "translate");
+              "prepare");
 
             let text = entry.value().as_str().unwrap();
 
@@ -105,8 +118,23 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
         }
     }
 
+    let removed = diff
+        .removed
+        .drain()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+    for key in removed {
+        tracing::info!(key = %key, "remove");
+        output.remove(&key);
+    }
+
     if !translatable.is_empty() {
         let expected = translatable.len();
+
+        tracing::info!(
+          lang = %options.target_lang,
+          length = %expected,
+          "translate");
 
         let mut request = TranslateTextRequest::new(translatable, options.target_lang);
         request.tag_handling = Some(TagHandling::Xml);
