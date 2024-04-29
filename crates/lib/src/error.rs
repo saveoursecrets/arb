@@ -20,9 +20,9 @@ pub enum Error {
     #[error("no YAML documents in index file '{0}'")]
     NoYamlDocuments(PathBuf),
 
-    /// API call did not return any translations for a key.
-    #[error("no translation for '{0}'")]
-    NoTranslation(String),
+    /// API call did not return the expected number of translations.
+    #[error("expecting '{0}' translations but got '{1}'")]
+    TranslationLength(usize, usize),
 
     /// Key is already prefixed.
     #[error("key '{0}' is already prefixed with an @ symbol")]

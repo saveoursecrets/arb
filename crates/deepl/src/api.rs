@@ -51,7 +51,6 @@ pub struct Language {
     /// Language name.
     pub name: String,
     /// Whether the language supports formality.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub supports_formality: Option<bool>,
 }
 

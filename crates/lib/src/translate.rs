@@ -22,7 +22,7 @@ impl TranslationOptions {
         Self {
             index_file: path.as_ref().to_path_buf(),
             target_lang,
-            dry_run: true,
+            dry_run: false,
         }
     }
 }
@@ -37,12 +37,26 @@ pub struct TranslateResult {
     pub translated: ArbFile,
 }
 
+#[derive(Debug)]
+enum CachedEntry<'a> {
+    /// Entry to passthrough to the output.
+    Entry(ArbEntry<'a>),
+    /// Entry to translate.
+    Translate {
+        entry: ArbEntry<'a>,
+        names: Option<Vec<&'a str>>,
+    },
+}
+
 /// Translate to a target language.
 pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<TranslateResult> {
     let index = ArbIndex::parse_yaml(&options.index_file)?;
     let template = index.template_content()?;
     let entries = template.entries();
     let mut output = ArbFile::default();
+    let mut cached = Vec::new();
+    let mut translatable = Vec::new();
+
     for entry in entries {
         if entry.is_translatable() {
             let placeholders = template.placeholders(entry.key())?;
@@ -74,51 +88,62 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
             };
 
             if !options.dry_run {
-                let translated =
-                    translate_single_sentence(&api, &entry, text.as_ref(), &options).await?;
-
-                // Revert placeholder XML tags
-                let translation = if let Some(names) = names {
-                    let mut translation = translated;
-                    for name in names.into_iter() {
-                        let needle = format!("<ph>{}</ph>", name);
-                        let original = format!("{{{}}}", name);
-                        translation = translation.replacen(&needle, &original, 1);
-                    }
-                    translation
-                } else {
-                    translated
-                };
-
-                output.insert_translation(entry.key(), translation);
+                translatable.push(text.as_ref().to_string());
+                cached.push(CachedEntry::Translate { entry, names });
             } else {
-                output.insert_entry(entry);
+                cached.push(CachedEntry::Entry(entry));
             }
         } else {
-            output.insert_entry(entry);
+            cached.push(CachedEntry::Entry(entry));
         }
     }
+
+    if !translatable.is_empty() {
+        let expected = translatable.len();
+
+        let mut request = TranslateTextRequest::new(translatable, options.target_lang);
+        request.tag_handling = Some(TagHandling::Xml);
+        request.ignore_tags = Some(vec!["ph".to_string()]);
+
+        let mut result = api.translate_text(&request).await?;
+
+        if result.translations.len() != expected {
+            return Err(Error::TranslationLength(
+                expected,
+                result.translations.len(),
+            ));
+        }
+
+        for entry in cached {
+            match entry {
+                CachedEntry::Entry(entry) => {
+                    output.insert_entry(entry);
+                }
+                CachedEntry::Translate { entry, names } => {
+                    let translated = result.translations.remove(0).text;
+
+                    // Revert placeholder XML tags
+                    let translation = if let Some(names) = names {
+                        let mut translation = translated;
+                        for name in names.into_iter() {
+                            let needle = format!("<ph>{}</ph>", name);
+                            let original = format!("{{{}}}", name);
+                            translation = translation.replacen(&needle, &original, 1);
+                        }
+                        translation
+                    } else {
+                        translated
+                    };
+
+                    output.insert_translation(entry.key(), translation)
+                }
+            }
+        }
+    }
+
     Ok(TranslateResult {
         index,
         template,
         translated: output,
     })
-}
-
-async fn translate_single_sentence(
-    api: &DeeplApi,
-    entry: &ArbEntry<'_>,
-    text: &str,
-    options: &TranslationOptions,
-) -> Result<String> {
-    let mut request = TranslateTextRequest::new(vec![text.to_string()], options.target_lang);
-    request.tag_handling = Some(TagHandling::Xml);
-    request.ignore_tags = Some(vec!["ph".to_string()]);
-    let result = api.translate_text(&request).await?;
-    let mut sentences = result.translations;
-    if sentences.is_empty() {
-        return Err(Error::NoTranslation(entry.key().to_string()));
-    }
-    let sentence = sentences.remove(0);
-    Ok(sentence.text)
 }
