@@ -102,7 +102,11 @@ impl ArbIndex {
     /// Load a language file if it exists otherwise use an
     /// empty file.
     pub fn load_or_default(&self, lang: Lang) -> Result<ArbFile> {
-        Ok(self.load(lang).ok().unwrap_or_default())
+        match self.load(lang) {
+            Ok(res) => Ok(res),
+            Err(Error::NoFile(_)) => Ok(ArbFile::default()),
+            Err(e) => Err(e),
+        }
     }
 }
 
