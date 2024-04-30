@@ -17,6 +17,6 @@ pub async fn languages_target() -> Result<()> {
         &std::env::var("DEEPL_API_KEY").unwrap(),
     ));
     let langs = api.languages(LanguageType::Target).await?;
-    println!("{:#?}", langs);
+    assert!(!langs.is_empty());
     Ok(())
 }
