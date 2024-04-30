@@ -26,13 +26,11 @@ export DEEPL_API_KEY="<api key>"
 arb translate --lang fr --pro --write l10n.yaml
 ```
 
-To see what changes would be made use `--dry-run`:
+To see what changes would be made use `--dry-run` which will skip calls to the [DeepL][] API:
 
 ```
 arb translate --lang fr --pro --dry-run l10n.yaml
 ```
-
-Which will skip calls to the [DeepL][] API.
 
 For more commands and options run `arb help`.
 
