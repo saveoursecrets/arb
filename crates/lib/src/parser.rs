@@ -59,7 +59,7 @@ pub struct ArbIndex {
     arb_dir: String,
     template_arb_file: String,
     name_prefix: String,
-    pub(super) cache: ArbCache,
+    pub(crate) cache: ArbCache,
 }
 
 impl ArbIndex {
@@ -240,10 +240,20 @@ pub struct FileDiff {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ArbFile {
     #[serde(flatten)]
-    contents: IndexMap<String, Value>,
+    pub(crate) contents: IndexMap<String, Value>,
 }
 
 impl ArbFile {
+    /// Number of entries.
+    pub fn len(&self) -> usize {
+        self.contents.len()
+    }
+
+    /// Whether this application resource bundle is empty.
+    pub fn is_empty(&self) -> bool {
+        self.contents.is_empty()
+    }
+
     /// All of the application resource bundle entries.
     pub fn entries(&self) -> Vec<ArbEntry<'_>> {
         self.contents
@@ -262,6 +272,12 @@ impl ArbFile {
     /// Insert a translated value.
     pub fn insert_translation<'a>(&mut self, key: &ArbKey<'a>, text: String) {
         self.contents.insert(key.to_string(), Value::String(text));
+    }
+
+    /// Shift insert a translated value.
+    pub fn shift_insert_translation<'a>(&mut self, index: usize, key: &ArbKey<'a>, text: String) {
+        self.contents
+            .shift_insert(index, key.to_string(), Value::String(text));
     }
 
     /// Insert an entry.

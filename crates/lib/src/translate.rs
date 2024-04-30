@@ -72,6 +72,8 @@ enum CachedEntry<'a> {
         entry: ArbEntry<'a>,
         /// Names of the placeholders.
         names: Option<Vec<&'a str>>,
+        /// Specific index to insert.
+        index: Option<usize>,
     },
 }
 
@@ -158,12 +160,22 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
                 Cow::Borrowed(text)
             };
 
+            let key_index = if diff.create.contains(entry.key().as_ref()) {
+                template.contents.get_index_of(entry.key().as_ref())
+            } else {
+                None
+            };
+
             if !options.dry_run {
                 translatable.push(text.as_ref().to_string());
                 if !options.disable_cache {
                     index.cache.add_entry(options.target_lang, entry.clone());
                 }
-                cached.push(CachedEntry::Translate { entry, names });
+                cached.push(CachedEntry::Translate {
+                    entry,
+                    names,
+                    index: key_index,
+                });
             } else {
                 cached.push(CachedEntry::Entry(entry));
             }
@@ -202,7 +214,11 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
                 CachedEntry::Entry(entry) => {
                     output.insert_entry(entry);
                 }
-                CachedEntry::Translate { entry, names } => {
+                CachedEntry::Translate {
+                    entry,
+                    names,
+                    index,
+                } => {
                     let translated = result.translations.remove(0).text;
 
                     // Revert placeholder XML tags
@@ -218,7 +234,15 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
                         translated
                     };
 
-                    output.insert_translation(entry.key(), translation)
+                    if let Some(index) = index {
+                        if index < output.len() {
+                            output.shift_insert_translation(index, entry.key(), translation)
+                        } else {
+                            output.insert_translation(entry.key(), translation)
+                        }
+                    } else {
+                        output.insert_translation(entry.key(), translation)
+                    }
                 }
             }
         }
