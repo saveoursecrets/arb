@@ -205,6 +205,11 @@ impl ArbFile {
 pub struct ArbEntry<'a>(ArbKey<'a>, ArbValue<'a>);
 
 impl<'a> ArbEntry<'a> {
+    /// Create a new entry.
+    pub fn new(key: &'a str, value: &'a Value) -> Self {
+        Self(ArbKey::new(key), ArbValue::new(value))
+    }
+
     /// Key for the entry.
     pub fn key(&self) -> &ArbKey<'a> {
         &self.0
@@ -265,6 +270,11 @@ impl<'a> fmt::Display for ArbKey<'a> {
 pub struct ArbValue<'a>(&'a Value);
 
 impl<'a> ArbValue<'a> {
+    /// Create a new value.
+    pub fn new(value: &'a Value) -> Self {
+        Self(value)
+    }
+
     /// String reference, only available when translatable.
     pub fn as_str(&self) -> Option<&str> {
         if let Value::String(val) = self.0 {

@@ -3,6 +3,7 @@ use crate::{ArbEntry, ArbFile, ArbIndex};
 use deepl::{DeeplApi, Lang, TagHandling, TranslateTextRequest};
 use std::{
     borrow::Cow,
+    collections::HashMap,
     path::{Path, PathBuf},
 };
 
@@ -26,6 +27,8 @@ pub struct TranslationOptions {
     pub name_prefix: String,
     /// Invalidation configuration.
     pub invalidation: Option<Invalidation>,
+    /// Overrides provided by humans.
+    pub overrides: Option<HashMap<Lang, ArbFile>>,
 }
 
 impl TranslationOptions {
@@ -37,6 +40,7 @@ impl TranslationOptions {
             dry_run: false,
             name_prefix: "app".to_string(),
             invalidation: None,
+            overrides: None,
         }
     }
 }
@@ -81,6 +85,12 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
     let mut translatable = Vec::new();
     let diff = template.diff(&output);
 
+    let overrides = if let Some(overrides) = &options.overrides {
+        overrides.get(&options.target_lang)
+    } else {
+        None
+    };
+
     for entry in entries {
         let invalidated = match &options.invalidation {
             Some(Invalidation::All) => true,
@@ -94,6 +104,14 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
                 || !diff.create.contains(entry.key().as_ref()))
         {
             continue;
+        }
+
+        // Would be overwritten by a manual translation
+        // so no need to translate
+        if let Some(overrides) = overrides {
+            if overrides.lookup(entry.key().as_ref()).is_some() {
+                continue;
+            }
         }
 
         if entry.is_translatable() {
@@ -182,6 +200,12 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
                     output.insert_translation(entry.key(), translation)
                 }
             }
+        }
+    }
+
+    if let Some(overrides) = overrides {
+        for entry in overrides.entries() {
+            output.insert_entry(entry);
         }
     }
 
