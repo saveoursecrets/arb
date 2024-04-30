@@ -80,6 +80,12 @@ enum CachedEntry<'a> {
 /// Placeholders are converted to XML tags and ignored from
 /// translation to preserve the placeholder names.
 pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<TranslateResult> {
+    if options.dry_run {
+        tracing::warn!("dry run");
+    }
+
+    tracing::info!(lang = %options.target_lang, "translate");
+
     let mut index = ArbIndex::parse_yaml(&options.index_file, &options.name_prefix)?;
     let template = index.template_content()?;
     let mut output = index.load_or_default(options.target_lang)?;
@@ -119,10 +125,16 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
 
         if entry.is_translatable() {
             let placeholders = template.placeholders(entry.key())?;
-            tracing::info!(
-              key = %entry.key(),
-              placeholders = ?placeholders,
-              "prepare");
+            if let Some(placeholders) = &placeholders {
+                tracing::info!(
+                  key = %entry.key(),
+                  placeholders = ?placeholders.to_vec(),
+                  "prepare");
+            } else {
+                tracing::info!(
+                  key = %entry.key(),
+                  "prepare");
+            }
 
             let text = entry.value().as_str().unwrap();
 
@@ -168,12 +180,13 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
     }
 
     let length = translatable.len();
-    if !translatable.is_empty() {
-        tracing::info!(
-          lang = %options.target_lang,
-          length = %length,
-          "translate");
 
+    tracing::info!(
+        lang = %options.target_lang,
+        length = %length,
+        "translate");
+
+    if !translatable.is_empty() {
         let mut request = TranslateTextRequest::new(translatable, options.target_lang);
         request.tag_handling = Some(TagHandling::Xml);
         request.ignore_tags = Some(vec!["ph".to_string()]);
@@ -213,6 +226,7 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
 
     if let Some(overrides) = overrides {
         for entry in overrides.entries() {
+            tracing::info!(key = %entry.key().as_ref(), "override");
             output.insert_entry(entry);
         }
     }
@@ -220,6 +234,10 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
     // Update the cache file
     if !options.disable_cache {
         index.write_cache()?;
+    }
+
+    if options.dry_run {
+        tracing::warn!("dry run");
     }
 
     Ok(TranslateResult {

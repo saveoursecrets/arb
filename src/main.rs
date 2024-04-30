@@ -44,7 +44,7 @@ pub enum Command {
         #[clap(short, long)]
         dry_run: bool,
 
-        /// Write language file to disc.
+        /// Write language file to disc when not dry run.
         #[clap(short, long)]
         write: bool,
 
@@ -115,7 +115,11 @@ pub async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
         ))
-        .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_target(false)
+                .without_time(),
+        )
         .init();
 
     let args = Arb::parse();
@@ -172,8 +176,6 @@ pub async fn main() -> anyhow::Result<()> {
                 let file_path = result.index.file_path(lang)?;
                 tracing::info!(path = %file_path.display(), "write file");
                 std::fs::write(&file_path, &content)?;
-            } else {
-                serde_json::to_writer_pretty(std::io::stdout(), &result.translated)?;
             }
         }
         Command::Usage { api_key, pro } => {

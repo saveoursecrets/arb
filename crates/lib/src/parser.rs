@@ -272,7 +272,7 @@ impl ArbFile {
 
     /// Remove an entry.
     pub fn remove(&mut self, key: &str) -> Option<Value> {
-        self.contents.remove(key)
+        self.contents.shift_remove(key)
     }
 
     /// Attempt to locate the placeholder names for a key.
