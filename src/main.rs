@@ -211,7 +211,7 @@ pub async fn main() -> anyhow::Result<()> {
             let template = index.template_content()?;
             for lang in languages {
                 let lang_file = index.load_or_default(lang)?;
-                let diff = template.diff(&lang_file);
+                let diff = template.diff(&lang_file, index.cache().get_file(&lang));
                 output.insert(lang, diff);
             }
             serde_json::to_writer_pretty(std::io::stdout(), &output)?;

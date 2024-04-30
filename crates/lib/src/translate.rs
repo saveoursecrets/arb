@@ -82,7 +82,7 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
     let mut output = index.load_or_default(options.target_lang)?;
     let mut cached = Vec::new();
     let mut translatable = Vec::new();
-    let diff = template.diff(&output);
+    let diff = template.diff(&output, index.cache.get_file(&options.target_lang));
 
     let overrides = if let Some(overrides) = &options.overrides {
         overrides.get(&options.target_lang)

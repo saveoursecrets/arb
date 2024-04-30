@@ -8,9 +8,7 @@ pub fn diff() -> Result<()> {
     let template = index.template_content()?;
     let french = index.load(Lang::Fr)?;
 
-    println!("French: {:#?}", french);
-
-    let diff = template.diff(&french);
+    let diff = template.diff(&french, index.cache().get_file(&Lang::Fr));
 
     println!("{:#?}", diff);
 

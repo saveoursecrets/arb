@@ -22,6 +22,11 @@ const CACHE_FILE: &str = ".cache.arb";
 pub struct ArbCache(BTreeMap<Lang, ArbFile>);
 
 impl ArbCache {
+    /// Get an application resource bundle file.
+    pub fn get_file(&self, lang: &Lang) -> Option<&ArbFile> {
+        self.0.get(lang)
+    }
+
     /// Add a cache entry.
     pub fn add_entry(&mut self, lang: Lang, entry: ArbEntry<'_>) {
         let file = self.0.entry(lang).or_insert(ArbFile::default());
@@ -66,6 +71,11 @@ impl ArbIndex {
     /// Template application resource bundle.
     pub fn template_arb_file(&self) -> &str {
         &self.template_arb_file
+    }
+
+    /// Get the cache of original translations.
+    pub fn cache(&self) -> &ArbCache {
+        &self.cache
     }
 
     /// Load and parse the template application resource bundle.
@@ -221,6 +231,9 @@ pub struct FileDiff {
     /// Set of keys that exist in the target language
     /// but not in the template.
     pub delete: HashSet<String>,
+    /// Set of keys that have changed in the template
+    /// since the last translation.
+    pub update: HashSet<String>,
 }
 
 /// Content of an application resource bundle file.
@@ -286,7 +299,7 @@ impl ArbFile {
     }
 
     /// Get a diff of keys between files.
-    pub fn diff<'a>(&'a self, other: &'a ArbFile) -> FileDiff {
+    pub fn diff<'a>(&'a self, other: &'a ArbFile, cache: Option<&'a ArbFile>) -> FileDiff {
         let lhs = self.contents.keys().collect::<HashSet<_>>();
         let rhs = other.contents.keys().collect::<HashSet<_>>();
         let create = lhs
@@ -297,7 +310,24 @@ impl ArbFile {
             .difference(&lhs)
             .map(|s| s.to_string())
             .collect::<HashSet<_>>();
-        FileDiff { create, delete }
+        let mut update = HashSet::new();
+        if let Some(cache) = cache {
+            for entry in cache.entries() {
+                if let (Some(current), Some(cached)) = (
+                    self.contents.get(entry.key().as_ref()),
+                    cache.contents.get(entry.key().as_ref()),
+                ) {
+                    if current != cached {
+                        update.insert(entry.key().as_ref().to_string());
+                    }
+                }
+            }
+        }
+        FileDiff {
+            create,
+            delete,
+            update,
+        }
     }
 }
 
