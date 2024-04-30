@@ -1,6 +1,6 @@
 # ARB
 
-Command line tool to localize Flutter apps using the DeepL translation API.
+Command line tool to localize Flutter apps using the [DeepL][] translation API.
 
 ## Install
 
@@ -26,8 +26,26 @@ export DEEPL_API_KEY="<api key>"
 arb translate --lang fr --pro --write l10n.yaml
 ```
 
+To see what changes would be made use `--dry-run`:
+
+```
+arb translate --lang fr --pro --dry-run l10n.yaml
+```
+
+Which will skip calls to the [DeepL][] API.
+
+For more commands and options run `arb help`.
+
+## Notes
+
+### Cache
+
+Once a translation has been created the program will use a diff of the template keys to only translate when necessary and delete translations that have been removed. In order to detect changes to strings a cache file is kept in the application resource bundle directory named `.cache.arb`.
+
 ## License
 
 MIT or Apache-2.0 at your discretion.
 
 © Copyright Save Our Secrets Pte Ltd 2024; all rights reserved.
+
+[DeepL]: https://deepl.com
