@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
 /// Languages supported by the DeepL API.
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING-KEBAB-CASE")]
 pub enum Lang {
     /// Arabic.

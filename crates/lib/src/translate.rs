@@ -67,13 +67,13 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
     let mut output = index.load_or_default(options.target_lang)?;
     let mut cached = Vec::new();
     let mut translatable = Vec::new();
-    let mut diff = template.diff(&output);
+    let diff = template.diff(&output);
 
     for entry in entries {
         // Ignore if removed or not in the set of added keys.
         //
         // TODO: handle invalidation here
-        if diff.removed.contains(entry.key().as_ref()) || !diff.added.contains(entry.key().as_ref())
+        if diff.delete.contains(entry.key().as_ref()) || !diff.create.contains(entry.key().as_ref())
         {
             continue;
         }
@@ -118,13 +118,8 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
         }
     }
 
-    let removed = diff
-        .removed
-        .drain()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-    for key in removed {
-        tracing::info!(key = %key, "remove");
+    for key in diff.delete {
+        tracing::info!(key = %key, "delete");
         output.remove(&key);
     }
 

@@ -1,9 +1,9 @@
 use arb_lib::{
     deepl::{ApiOptions, DeeplApi, Lang, LanguageType},
-    translate, TranslationOptions,
+    translate, ArbIndex, TranslationOptions,
 };
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -17,7 +17,7 @@ pub enum Command {
     /// Translate to a language.
     #[clap(alias = "tl")]
     Translate {
-        /// Target language.
+        /// API key.
         #[clap(short, long, hide_env_values = true, env = "DEEPL_API_KEY")]
         api_key: String,
 
@@ -46,7 +46,7 @@ pub enum Command {
     },
     /// Print account usage.
     Usage {
-        /// Target language.
+        /// API key.
         #[clap(short, long, hide_env_values = true, env = "DEEPL_API_KEY")]
         api_key: String,
 
@@ -56,16 +56,30 @@ pub enum Command {
     },
     /// Print supported languages.
     Languages {
-        /// Target language.
+        /// API key.
         #[clap(short, long, hide_env_values = true, env = "DEEPL_API_KEY")]
         api_key: String,
 
         /// Use DeepL API pro endpoint.
         #[clap(short, long)]
         pro: bool,
+
         /// Language type (source or target).
         #[clap(short, long, default_value = "source")]
         language_type: LanguageType,
+    },
+    /// Diff template with language(s).
+    Diff {
+        /// File name prefix.
+        #[clap(short, long, default_value = "app")]
+        name_prefix: String,
+
+        /// Languages to compare to the template language.
+        #[clap(short, long)]
+        languages: Vec<Lang>,
+
+        /// Localization YAML file.
+        file: PathBuf,
     },
 }
 
@@ -137,6 +151,22 @@ pub async fn main() -> anyhow::Result<()> {
             let api = DeeplApi::new(options);
             let langs = api.languages(language_type).await?;
             serde_json::to_writer_pretty(std::io::stdout(), &langs)?;
+            println!();
+        }
+        Command::Diff {
+            name_prefix,
+            file,
+            languages,
+        } => {
+            let mut output = BTreeMap::new();
+            let index = ArbIndex::parse_yaml(file, name_prefix)?;
+            let template = index.template_content()?;
+            for lang in languages {
+                let lang_file = index.load_or_default(lang)?;
+                let diff = template.diff(&lang_file);
+                output.insert(lang, diff);
+            }
+            serde_json::to_writer_pretty(std::io::stdout(), &output)?;
             println!();
         }
     }

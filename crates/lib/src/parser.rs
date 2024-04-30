@@ -106,15 +106,15 @@ impl ArbIndex {
     }
 }
 
-/// Diff between two files.
-#[derive(Debug)]
-pub struct FileDiff<'a> {
-    /// Set of keys added to the left hand side
-    /// not present in the right hand side.
-    pub added: HashSet<&'a str>,
-    /// Set of keys in the right hand side that
-    /// no longer exist in the left hand side.
-    pub removed: HashSet<&'a str>,
+/// Diff of the keys in two language files.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileDiff {
+    /// Set of keys that exist in the template but
+    /// not in the target language.
+    pub create: HashSet<String>,
+    /// Set of keys that exist in the target language
+    /// but not in the template.
+    pub delete: HashSet<String>,
 }
 
 /// Content of an application resource bundle file.
@@ -177,9 +177,15 @@ impl ArbFile {
     pub fn diff<'a>(&'a self, other: &'a ArbFile) -> FileDiff {
         let lhs = self.0.keys().collect::<HashSet<_>>();
         let rhs = other.0.keys().collect::<HashSet<_>>();
-        let added = lhs.difference(&rhs).map(|s| &s[..]).collect::<HashSet<_>>();
-        let removed = rhs.difference(&lhs).map(|s| &s[..]).collect::<HashSet<_>>();
-        FileDiff { added, removed }
+        let create = lhs
+            .difference(&rhs)
+            .map(|s| s.to_string())
+            .collect::<HashSet<_>>();
+        let delete = rhs
+            .difference(&lhs)
+            .map(|s| s.to_string())
+            .collect::<HashSet<_>>();
+        FileDiff { create, delete }
     }
 }
 
