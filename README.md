@@ -8,6 +8,15 @@ Command line tool to localize Flutter apps using the DeepL translation API.
 cargo install arb
 ```
 
+## Test
+
+Use a Free API key for the tests:
+
+```
+export DEEPL_API_KEY="<api key>"
+cargo test
+```
+
 ## Usage
 
 Convert all the strings from the template language into French and write the translations to `app_fr.arb`:

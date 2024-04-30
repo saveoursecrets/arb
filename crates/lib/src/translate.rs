@@ -49,6 +49,8 @@ pub struct TranslateResult {
     pub template: ArbFile,
     /// Translated content.
     pub translated: ArbFile,
+    /// Number of translations.
+    pub length: usize,
 }
 
 #[derive(Debug)]
@@ -139,12 +141,11 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
         output.remove(&key);
     }
 
+    let length = translatable.len();
     if !translatable.is_empty() {
-        let expected = translatable.len();
-
         tracing::info!(
           lang = %options.target_lang,
-          length = %expected,
+          length = %length,
           "translate");
 
         let mut request = TranslateTextRequest::new(translatable, options.target_lang);
@@ -153,11 +154,8 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
 
         let mut result = api.translate_text(&request).await?;
 
-        if result.translations.len() != expected {
-            return Err(Error::TranslationLength(
-                expected,
-                result.translations.len(),
-            ));
+        if result.translations.len() != length {
+            return Err(Error::TranslationLength(length, result.translations.len()));
         }
 
         for entry in cached {
@@ -191,5 +189,6 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
         index,
         template,
         translated: output,
+        length,
     })
 }
