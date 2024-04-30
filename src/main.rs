@@ -1,3 +1,4 @@
+use anyhow::Result;
 use arb_lib::{
     deepl::{ApiOptions, DeeplApi, Lang, LanguageType},
     translate, ArbFile, ArbIndex, Invalidation, TranslationOptions,
@@ -59,6 +60,46 @@ pub enum Command {
         /// Localization YAML file.
         file: PathBuf,
     },
+    /// Update existing translations.
+    #[clap(alias = "up")]
+    Update {
+        /// API key.
+        #[clap(short, long, hide_env_values = true, env = "DEEPL_API_KEY")]
+        api_key: String,
+
+        /// Use DeepL API pro endpoint.
+        #[clap(short, long)]
+        pro: bool,
+
+        /// Invalidate all keys.
+        #[clap(short, long)]
+        force: bool,
+
+        /// Invalidate specific keys.
+        #[clap(short, long)]
+        invalidate: Vec<String>,
+
+        /*
+        /// Human-translated overrides for the target language.
+        #[clap(short, long)]
+        overrides: Option<PathBuf>,
+        */
+        /// Dry run.
+        #[clap(short, long)]
+        dry_run: bool,
+
+        /// Write language file to disc when not dry run.
+        #[clap(short, long)]
+        write: bool,
+
+        /// File name prefix.
+        #[clap(short, long, default_value = "app")]
+        name_prefix: String,
+
+        /// Localization YAML file.
+        file: PathBuf,
+    },
+
     /// Print account usage.
     Usage {
         /// API key.
@@ -124,6 +165,40 @@ pub async fn main() -> anyhow::Result<()> {
 
     let args = Arb::parse();
     match args.cmd {
+        Command::Update {
+            file,
+            api_key,
+            pro,
+            write,
+            name_prefix,
+            dry_run,
+            force,
+            invalidate,
+            // overrides,
+        } => {
+            let index = ArbIndex::parse_yaml(&file, name_prefix.clone())?;
+            let translations = index.list_translated()?;
+            for lang in translations.keys() {
+                if lang == index.template_language() {
+                    continue;
+                }
+                translate_language(
+                    *lang,
+                    file.clone(),
+                    api_key.clone(),
+                    pro,
+                    write,
+                    name_prefix.clone(),
+                    dry_run,
+                    force,
+                    invalidate.clone(),
+                    // overrides,
+                    None,
+                )
+                .await?;
+            }
+        }
+
         Command::Translate {
             lang,
             file,
@@ -136,14 +211,6 @@ pub async fn main() -> anyhow::Result<()> {
             invalidate,
             overrides,
         } => {
-            let invalidation = if force {
-                Some(Invalidation::All)
-            } else if !invalidate.is_empty() {
-                Some(Invalidation::Keys(invalidate))
-            } else {
-                None
-            };
-
             let overrides = if let Some(overrides) = &overrides {
                 let content = std::fs::read_to_string(overrides)?;
                 let file: ArbFile = serde_json::from_str(&content)?;
@@ -154,29 +221,19 @@ pub async fn main() -> anyhow::Result<()> {
                 None
             };
 
-            let options = if pro {
-                ApiOptions::new_pro(api_key)
-            } else {
-                ApiOptions::new_free(api_key)
-            };
-            let api = DeeplApi::new(options);
-            let options = TranslationOptions {
-                index_file: file,
-                target_lang: lang,
-                dry_run,
+            translate_language(
+                lang,
+                file,
+                api_key,
+                pro,
+                write,
                 name_prefix,
-                invalidation,
+                dry_run,
+                force,
+                invalidate,
                 overrides,
-                disable_cache: false,
-            };
-            let result = translate(api, options).await?;
-
-            if write && !dry_run {
-                let content = serde_json::to_string_pretty(&result.translated)?;
-                let file_path = result.index.file_path(lang)?;
-                tracing::info!(path = %file_path.display(), "write file");
-                std::fs::write(&file_path, &content)?;
-            }
+            )
+            .await?;
         }
         Command::Usage { api_key, pro } => {
             let options = if pro {
@@ -226,6 +283,52 @@ pub async fn main() -> anyhow::Result<()> {
             serde_json::to_writer_pretty(std::io::stdout(), &output)?;
             println!();
         }
+    }
+    Ok(())
+}
+
+async fn translate_language(
+    lang: Lang,
+    file: PathBuf,
+    api_key: String,
+    pro: bool,
+    write: bool,
+    name_prefix: String,
+    dry_run: bool,
+    force: bool,
+    invalidate: Vec<String>,
+    overrides: Option<HashMap<Lang, ArbFile>>,
+) -> Result<()> {
+    let invalidation = if force {
+        Some(Invalidation::All)
+    } else if !invalidate.is_empty() {
+        Some(Invalidation::Keys(invalidate))
+    } else {
+        None
+    };
+
+    let options = if pro {
+        ApiOptions::new_pro(api_key)
+    } else {
+        ApiOptions::new_free(api_key)
+    };
+    let api = DeeplApi::new(options);
+    let options = TranslationOptions {
+        index_file: file,
+        target_lang: lang,
+        dry_run,
+        name_prefix,
+        invalidation,
+        overrides,
+        disable_cache: false,
+    };
+    let result = translate(api, options).await?;
+
+    if write && !dry_run {
+        let content = serde_json::to_string_pretty(&result.translated)?;
+        let file_path = result.index.file_path(lang)?;
+        tracing::info!(path = %file_path.display(), "write file");
+        std::fs::write(&file_path, &content)?;
     }
     Ok(())
 }

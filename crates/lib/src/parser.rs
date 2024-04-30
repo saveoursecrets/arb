@@ -57,6 +57,7 @@ impl ArbCache {
 pub struct ArbIndex {
     file_path: PathBuf,
     arb_dir: String,
+    template_language: Lang,
     template_arb_file: String,
     name_prefix: String,
     pub(crate) cache: ArbCache,
@@ -71,6 +72,11 @@ impl ArbIndex {
     /// Template application resource bundle.
     pub fn template_arb_file(&self) -> &str {
         &self.template_arb_file
+    }
+
+    /// Language of the template application resource bundle.
+    pub fn template_language(&self) -> &Lang {
+        &self.template_language
     }
 
     /// Get the cache of original translations.
@@ -116,10 +122,16 @@ impl ArbIndex {
             .as_str()
             .ok_or_else(|| Error::TemplateArbFileNotDefined(path.as_ref().to_owned()))?;
 
+        let stem = template_arb_file.trim_end_matches(".arb");
+        let pat = format!("{}_", name_prefix.as_ref());
+        let lang_code = stem.trim_start_matches(&pat);
+        let template_language: Lang = lang_code.parse()?;
+
         let mut index = ArbIndex {
             file_path: path.as_ref().to_owned(),
             arb_dir: arb_dir.to_owned(),
             template_arb_file: template_arb_file.to_owned(),
+            template_language,
             name_prefix: name_prefix.as_ref().to_string(),
             cache: Default::default(),
         };
