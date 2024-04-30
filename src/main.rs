@@ -1,9 +1,12 @@
 use arb_lib::{
     deepl::{ApiOptions, DeeplApi, Lang, LanguageType},
-    translate, ArbIndex, Invalidation, TranslationOptions,
+    translate, ArbFile, ArbIndex, Invalidation, TranslationOptions,
 };
 use clap::{Parser, Subcommand};
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::PathBuf,
+};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -32,6 +35,10 @@ pub enum Command {
         /// Invalidate specific keys.
         #[clap(short, long)]
         invalidate: Vec<String>,
+
+        /// Human-translated overrides for the target language.
+        #[clap(short, long)]
+        overrides: Option<PathBuf>,
 
         /// Dry run.
         #[clap(short, long)]
@@ -123,11 +130,22 @@ pub async fn main() -> anyhow::Result<()> {
             dry_run,
             force,
             invalidate,
+            overrides,
         } => {
             let invalidation = if force {
                 Some(Invalidation::All)
             } else if !invalidate.is_empty() {
                 Some(Invalidation::Keys(invalidate))
+            } else {
+                None
+            };
+
+            let overrides = if let Some(overrides) = &overrides {
+                let content = std::fs::read_to_string(overrides)?;
+                let file: ArbFile = serde_json::from_str(&content)?;
+                let mut map = HashMap::new();
+                map.insert(lang, file);
+                Some(map)
             } else {
                 None
             };
@@ -144,7 +162,7 @@ pub async fn main() -> anyhow::Result<()> {
                 dry_run,
                 name_prefix,
                 invalidation,
-                overrides: None,
+                overrides,
             };
             let result = translate(api, options).await?;
 
