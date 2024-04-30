@@ -6,6 +6,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Variants for key invalidation.
+pub enum Invalidation {
+    /// Invalidate all keys.
+    All,
+    /// Invalidate specific keys.
+    Keys(Vec<String>),
+}
+
 /// Options for translation.
 pub struct TranslationOptions {
     /// YAML localization index file.
@@ -14,9 +22,10 @@ pub struct TranslationOptions {
     pub target_lang: Lang,
     /// Whether this is a dry run.
     pub dry_run: bool,
-
     /// Prefix for localization file names.
     pub name_prefix: String,
+    /// Invalidation configuration.
+    pub invalidation: Option<Invalidation>,
 }
 
 impl TranslationOptions {
@@ -27,6 +36,7 @@ impl TranslationOptions {
             target_lang,
             dry_run: false,
             name_prefix: "app".to_string(),
+            invalidation: None,
         }
     }
 }
@@ -70,10 +80,16 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
     let diff = template.diff(&output);
 
     for entry in entries {
+        let invalidated = match &options.invalidation {
+            Some(Invalidation::All) => true,
+            Some(Invalidation::Keys(keys)) => keys.iter().any(|x| x == entry.key().as_ref()),
+            _ => false,
+        };
+
         // Ignore if removed or not in the set of added keys.
-        //
-        // TODO: handle invalidation here
-        if diff.delete.contains(entry.key().as_ref()) || !diff.create.contains(entry.key().as_ref())
+        if !invalidated
+            && (diff.delete.contains(entry.key().as_ref())
+                || !diff.create.contains(entry.key().as_ref()))
         {
             continue;
         }

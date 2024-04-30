@@ -1,6 +1,6 @@
 use arb_lib::{
     deepl::{ApiOptions, DeeplApi, Lang, LanguageType},
-    translate, ArbIndex, TranslationOptions,
+    translate, ArbIndex, Invalidation, TranslationOptions,
 };
 use clap::{Parser, Subcommand};
 use std::{collections::BTreeMap, path::PathBuf};
@@ -14,7 +14,7 @@ pub struct Arb {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Translate to a language.
+    /// Translate the template to a language.
     #[clap(alias = "tl")]
     Translate {
         /// API key.
@@ -24,6 +24,14 @@ pub enum Command {
         /// Use DeepL API pro endpoint.
         #[clap(short, long)]
         pro: bool,
+
+        /// Invalidate all keys.
+        #[clap(short, long)]
+        force: bool,
+
+        /// Invalidate specific keys.
+        #[clap(short, long)]
+        invalidate: Vec<String>,
 
         /// Dry run.
         #[clap(short, long)]
@@ -103,7 +111,17 @@ pub async fn main() -> anyhow::Result<()> {
             write,
             name_prefix,
             dry_run,
+            force,
+            invalidate,
         } => {
+            let invalidation = if force {
+                Some(Invalidation::All)
+            } else if !invalidate.is_empty() {
+                Some(Invalidation::Keys(invalidate))
+            } else {
+                None
+            };
+
             let options = if pro {
                 ApiOptions::new_pro(api_key)
             } else {
@@ -115,6 +133,7 @@ pub async fn main() -> anyhow::Result<()> {
                 target_lang: lang,
                 dry_run,
                 name_prefix,
+                invalidation,
             };
             let result = translate(api, options).await?;
 
