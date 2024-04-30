@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
-    collections::HashSet,
+    collections::{BTreeMap, HashSet},
     fmt,
     path::{Path, PathBuf},
 };
@@ -81,19 +81,58 @@ impl ArbIndex {
 
     /// Path to a language file.
     pub fn file_path(&self, lang: Lang) -> Result<PathBuf> {
-        let output_file = format!(
+        Ok(self.arb_directory()?.join(self.format_file_name(lang)))
+    }
+
+    /// Format a language to a file name.
+    pub fn format_file_name(&self, lang: Lang) -> String {
+        format!(
             "{}_{}.arb",
             self.name_prefix,
             lang.to_string().to_lowercase().replace("-", "_")
-        );
+        )
+    }
 
+    /// Parse a file path to a language.
+    pub fn parse_file_name(&self, path: impl AsRef<Path>) -> Option<Lang> {
+        if let Some(name) = path.as_ref().file_stem() {
+            let name = name.to_string_lossy();
+            if name.starts_with(&self.name_prefix) {
+                let pat = format!("{}_", self.name_prefix);
+                let lang_code = name.trim_start_matches(&pat);
+                lang_code.parse().ok()
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Compute the application resource bundle directory relative to the
+    /// parent of the internationalization index file.
+    pub fn arb_directory(&self) -> Result<PathBuf> {
         let arb_dir = PathBuf::from(&self.arb_dir);
         let parent = if arb_dir.is_relative() {
             self.parent_path()?.join(arb_dir)
         } else {
             arb_dir
         };
-        Ok(parent.join(output_file))
+        Ok(parent)
+    }
+
+    /// List translated languages.
+    pub fn list_translated(&self) -> Result<BTreeMap<Lang, PathBuf>> {
+        let mut output = BTreeMap::new();
+        let dir = self.arb_directory()?;
+        for entry in std::fs::read_dir(&dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if let (true, Some(lang)) = (path.is_file(), self.parse_file_name(&path)) {
+                output.insert(lang, path);
+            }
+        }
+        Ok(output)
     }
 
     /// Load a language file from disc.

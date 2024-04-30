@@ -62,6 +62,16 @@ pub enum Command {
         #[clap(short, long)]
         pro: bool,
     },
+    /// List language application resource bundles.
+    #[clap(alias = "ls")]
+    List {
+        /// File name prefix.
+        #[clap(short, long, default_value = "app")]
+        name_prefix: String,
+
+        /// Localization YAML file.
+        file: PathBuf,
+    },
     /// Print supported languages.
     Languages {
         /// API key.
@@ -186,6 +196,12 @@ pub async fn main() -> anyhow::Result<()> {
                 let diff = template.diff(&lang_file);
                 output.insert(lang, diff);
             }
+            serde_json::to_writer_pretty(std::io::stdout(), &output)?;
+            println!();
+        }
+        Command::List { file, name_prefix } => {
+            let index = ArbIndex::parse_yaml(file, name_prefix)?;
+            let output = index.list_translated()?;
             serde_json::to_writer_pretty(std::io::stdout(), &output)?;
             println!();
         }

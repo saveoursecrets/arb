@@ -1,2 +1,3 @@
 mod diff;
-mod parse_index;
+mod parse;
+mod translated_languages;
