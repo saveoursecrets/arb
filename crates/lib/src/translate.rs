@@ -160,9 +160,11 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
         }
     }
 
+    // Clean up any existing entries scheduled to be deleted
     for key in diff.delete {
         tracing::info!(key = %key, "delete");
         output.remove(&key);
+        index.cache.remove_entry(&options.target_lang, &key);
     }
 
     let length = translatable.len();
