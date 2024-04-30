@@ -41,10 +41,6 @@ pub enum Command {
         #[clap(short, long)]
         dry_run: bool,
 
-        /// Write language file to disc when not dry run.
-        #[clap(short, long)]
-        write: bool,
-
         /// File name prefix.
         #[clap(short, long, default_value = "app")]
         name_prefix: String,
@@ -79,10 +75,6 @@ pub enum Command {
         /// Dry run.
         #[clap(short, long)]
         dry_run: bool,
-
-        /// Write language file to disc when not dry run.
-        #[clap(short, long)]
-        write: bool,
 
         /// File name prefix.
         #[clap(short, long, default_value = "app")]
@@ -152,7 +144,6 @@ pub async fn main() -> anyhow::Result<()> {
         Command::Update {
             file,
             api_key,
-            write,
             name_prefix,
             dry_run,
             force,
@@ -169,7 +160,6 @@ pub async fn main() -> anyhow::Result<()> {
                     *lang,
                     file.clone(),
                     api_key.clone(),
-                    write,
                     name_prefix.clone(),
                     dry_run,
                     force,
@@ -185,7 +175,6 @@ pub async fn main() -> anyhow::Result<()> {
             lang,
             file,
             api_key,
-            write,
             name_prefix,
             dry_run,
             force,
@@ -206,7 +195,6 @@ pub async fn main() -> anyhow::Result<()> {
                 lang,
                 file,
                 api_key,
-                write,
                 name_prefix,
                 dry_run,
                 force,
@@ -262,7 +250,6 @@ async fn translate_language(
     lang: Lang,
     file: PathBuf,
     api_key: String,
-    write: bool,
     name_prefix: String,
     dry_run: bool,
     force: bool,
@@ -289,7 +276,7 @@ async fn translate_language(
     };
     let result = translate(api, options).await?;
 
-    if write && !dry_run {
+    if !dry_run {
         let content = serde_json::to_string_pretty(&result.translated)?;
         let file_path = result.index.file_path(lang)?;
         tracing::info!(path = %file_path.display(), "write file");
