@@ -77,9 +77,8 @@ enum CachedEntry<'a> {
 /// Placeholders are converted to XML tags and ignored from
 /// translation to preserve the placeholder names.
 pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<TranslateResult> {
-    let index = ArbIndex::parse_yaml(&options.index_file, &options.name_prefix)?;
+    let mut index = ArbIndex::parse_yaml(&options.index_file, &options.name_prefix)?;
     let template = index.template_content()?;
-    let entries = template.entries();
     let mut output = index.load_or_default(options.target_lang)?;
     let mut cached = Vec::new();
     let mut translatable = Vec::new();
@@ -91,7 +90,7 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
         None
     };
 
-    for entry in entries {
+    for entry in template.entries() {
         let invalidated = match &options.invalidation {
             Some(Invalidation::All) => true,
             Some(Invalidation::Keys(keys)) => keys.iter().any(|x| x == entry.key().as_ref()),
@@ -145,6 +144,7 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
 
             if !options.dry_run {
                 translatable.push(text.as_ref().to_string());
+                index.cache.add_entry(options.target_lang, entry.clone());
                 cached.push(CachedEntry::Translate { entry, names });
             } else {
                 cached.push(CachedEntry::Entry(entry));
@@ -208,6 +208,9 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
             output.insert_entry(entry);
         }
     }
+
+    // Update the cache file
+    index.write_cache()?;
 
     Ok(TranslateResult {
         index,

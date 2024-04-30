@@ -1,4 +1,5 @@
 {
+  "@@locale": "en",
   "obsolete": "Hello",
   "fresh": "Hello"
 }

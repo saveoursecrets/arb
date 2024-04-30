@@ -12,6 +12,40 @@ use std::{
 const ARB_DIR: &str = "arb-dir";
 const TEMPLATE_ARB_FILE: &str = "template-arb-file";
 const PLACEHOLDERS: &str = "placeholders";
+const CACHE_FILE: &str = ".cache.arb";
+
+/// Cache of template strings used for translations.
+///
+/// Used to determine which keys need updating when strings
+/// in the template file are changed.
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ArbCache(BTreeMap<Lang, ArbFile>);
+
+impl ArbCache {
+    /// Add a cache entry.
+    pub fn add_entry(&mut self, lang: Lang, entry: ArbEntry<'_>) {
+        let file = self.0.entry(lang).or_insert(ArbFile::default());
+        file.insert_entry(entry);
+    }
+
+    /// Get a cache entry.
+    pub fn get_entry<'a>(&'a self, lang: &Lang, key: &'a str) -> Option<ArbEntry<'a>> {
+        if let Some(file) = self.0.get(lang) {
+            file.lookup(key)
+        } else {
+            None
+        }
+    }
+
+    /// Remove a cache entry.
+    pub fn remove_entry(&mut self, lang: &Lang, key: &str) -> Option<Value> {
+        if let Some(file) = self.0.get_mut(lang) {
+            file.remove(key)
+        } else {
+            None
+        }
+    }
+}
 
 /// Internationalization index file.
 #[derive(Debug)]
@@ -20,6 +54,7 @@ pub struct ArbIndex {
     arb_dir: String,
     template_arb_file: String,
     name_prefix: String,
+    pub(super) cache: ArbCache,
 }
 
 impl ArbIndex {
@@ -71,12 +106,16 @@ impl ArbIndex {
             .as_str()
             .ok_or_else(|| Error::TemplateArbFileNotDefined(path.as_ref().to_owned()))?;
 
-        Ok(ArbIndex {
+        let mut index = ArbIndex {
             file_path: path.as_ref().to_owned(),
             arb_dir: arb_dir.to_owned(),
             template_arb_file: template_arb_file.to_owned(),
             name_prefix: name_prefix.as_ref().to_string(),
-        })
+            cache: Default::default(),
+        };
+        index.cache = index.read_cache()?;
+
+        Ok(index)
     }
 
     /// Path to a language file.
@@ -154,6 +193,23 @@ impl ArbIndex {
             Err(e) => Err(e),
         }
     }
+
+    fn read_cache(&self) -> Result<ArbCache> {
+        let cache_path = self.arb_directory()?.join(CACHE_FILE);
+        if cache_path.try_exists()? {
+            let mut cache_file = std::fs::File::open(cache_path)?;
+            Ok(serde_json::from_reader(&mut cache_file)?)
+        } else {
+            Ok(ArbCache::default())
+        }
+    }
+
+    pub(super) fn write_cache(&self) -> Result<()> {
+        let cache_path = self.arb_directory()?.join(CACHE_FILE);
+        let mut cache_file = std::fs::File::create(cache_path)?;
+        serde_json::to_writer_pretty(&mut cache_file, &self.cache)?;
+        Ok(())
+    }
 }
 
 /// Diff of the keys in two language files.
@@ -169,12 +225,15 @@ pub struct FileDiff {
 
 /// Content of an application resource bundle file.
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct ArbFile(IndexMap<String, Value>);
+pub struct ArbFile {
+    #[serde(flatten)]
+    contents: IndexMap<String, Value>,
+}
 
 impl ArbFile {
     /// All of the application resource bundle entries.
     pub fn entries(&self) -> Vec<ArbEntry<'_>> {
-        self.0
+        self.contents
             .iter()
             .map(|(k, v)| ArbEntry(ArbKey(k), ArbValue(v)))
             .collect()
@@ -182,22 +241,25 @@ impl ArbFile {
 
     /// Lookup an entry by key.
     pub fn lookup<'a>(&'a self, key: &'a str) -> Option<ArbEntry<'a>> {
-        self.0.get(key).map(|v| ArbEntry(ArbKey(key), ArbValue(v)))
+        self.contents
+            .get(key)
+            .map(|v| ArbEntry(ArbKey(key), ArbValue(v)))
     }
 
     /// Insert a translated value.
     pub fn insert_translation<'a>(&mut self, key: &ArbKey<'a>, text: String) {
-        self.0.insert(key.to_string(), Value::String(text));
+        self.contents.insert(key.to_string(), Value::String(text));
     }
 
     /// Insert an entry.
     pub fn insert_entry<'a>(&mut self, entry: ArbEntry<'a>) {
-        self.0.insert(entry.key().to_string(), entry.value().into());
+        self.contents
+            .insert(entry.key().to_string(), entry.value().into());
     }
 
     /// Remove an entry.
-    pub fn remove(&mut self, key: &str) {
-        self.0.remove(key);
+    pub fn remove(&mut self, key: &str) -> Option<Value> {
+        self.contents.remove(key)
     }
 
     /// Attempt to locate the placeholder names for a key.
@@ -207,7 +269,7 @@ impl ArbFile {
         }
 
         let meta_key = format!("@{}", key.as_ref());
-        if let Some(value) = self.0.get(&meta_key) {
+        if let Some(value) = self.contents.get(&meta_key) {
             if let Value::Object(map) = value {
                 if let Some(Value::Object(placeholders)) = map.get(PLACEHOLDERS) {
                     let keys = placeholders.keys().map(|k| &k[..]).collect::<Vec<_>>();
@@ -225,8 +287,8 @@ impl ArbFile {
 
     /// Get a diff of keys between files.
     pub fn diff<'a>(&'a self, other: &'a ArbFile) -> FileDiff {
-        let lhs = self.0.keys().collect::<HashSet<_>>();
-        let rhs = other.0.keys().collect::<HashSet<_>>();
+        let lhs = self.contents.keys().collect::<HashSet<_>>();
+        let rhs = other.contents.keys().collect::<HashSet<_>>();
         let create = lhs
             .difference(&rhs)
             .map(|s| s.to_string())
@@ -240,7 +302,7 @@ impl ArbFile {
 }
 
 /// Entry in an application resource bundle map.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArbEntry<'a>(ArbKey<'a>, ArbValue<'a>);
 
 impl<'a> ArbEntry<'a> {
@@ -269,7 +331,7 @@ impl<'a> ArbEntry<'a> {
 }
 
 /// Key in the application resource bundle map.
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct ArbKey<'a>(&'a str);
 
 impl<'a> ArbKey<'a> {
@@ -305,7 +367,7 @@ impl<'a> fmt::Display for ArbKey<'a> {
 }
 
 /// Value in the application resource bundle map.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ArbValue<'a>(&'a Value);
 
 impl<'a> ArbValue<'a> {
