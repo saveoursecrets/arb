@@ -10,7 +10,7 @@ pub async fn basic_translate() -> Result<()> {
     let api = DeeplApi::new(ApiOptions::new_free(
         &std::env::var("DEEPL_API_KEY").unwrap(),
     ));
-    let index = "tests/fixtures/basic-index.yaml";
+    let index = "tests/fixtures/basic.yaml";
     let options = TranslationOptions::new(index, Lang::Fr);
     let result = translate(api, options).await?;
 

@@ -1,4 +1,4 @@
-arb-dir: invalidation-i10n
+arb-dir: diff
 template-arb-file: app_en.arb
 output-localization-file: app_localizations.dart
 nullable-getter: false

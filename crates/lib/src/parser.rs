@@ -86,7 +86,14 @@ impl ArbIndex {
             self.name_prefix,
             lang.to_string().to_lowercase().replace("-", "_")
         );
-        Ok(self.parent_path()?.join(output_file))
+
+        let arb_dir = PathBuf::from(&self.arb_dir);
+        let parent = if arb_dir.is_relative() {
+            self.parent_path()?.join(arb_dir)
+        } else {
+            arb_dir
+        };
+        Ok(parent.join(output_file))
     }
 
     /// Load a language file from disc.

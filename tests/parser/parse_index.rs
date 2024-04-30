@@ -3,8 +3,8 @@ use arb_lib::{ArbIndex, ArbKey};
 
 #[test]
 pub fn parse_index_with_template() -> Result<()> {
-    let index = ArbIndex::parse_yaml("tests/fixtures/basic-index.yaml", "app")?;
-    assert_eq!("basic-i10n", index.arb_dir());
+    let index = ArbIndex::parse_yaml("tests/fixtures/basic.yaml", "app")?;
+    assert_eq!("basic", index.arb_dir());
     assert_eq!("app_en.arb", index.template_arb_file());
 
     let template = index.template_content()?;
