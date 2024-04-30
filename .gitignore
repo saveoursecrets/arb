@@ -1,2 +1,3 @@
 /target
 .cache.arb
+!tests/fixtures/diff_update/.cache.arb

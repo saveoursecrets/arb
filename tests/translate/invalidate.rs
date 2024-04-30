@@ -19,6 +19,7 @@ pub async fn invalidate_all() -> Result<()> {
         name_prefix: "app".to_owned(),
         invalidation: Some(Invalidation::All),
         overrides: None,
+        disable_cache: false,
     };
     let result = translate(api, options).await?;
     assert_eq!(1, result.length);
@@ -39,6 +40,7 @@ pub async fn invalidate_keys() -> Result<()> {
         name_prefix: "app".to_owned(),
         invalidation: Some(Invalidation::Keys(vec!["message".to_owned()])),
         overrides: None,
+        disable_cache: false,
     };
     let result = translate(api, options).await?;
     assert_eq!(1, result.length);

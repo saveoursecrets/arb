@@ -163,6 +163,7 @@ pub async fn main() -> anyhow::Result<()> {
                 name_prefix,
                 invalidation,
                 overrides,
+                disable_cache: false,
             };
             let result = translate(api, options).await?;
 

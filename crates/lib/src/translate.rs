@@ -29,6 +29,8 @@ pub struct TranslationOptions {
     pub invalidation: Option<Invalidation>,
     /// Overrides provided by humans.
     pub overrides: Option<HashMap<Lang, ArbFile>>,
+    /// Disable updating the cache.
+    pub disable_cache: bool,
 }
 
 impl TranslationOptions {
@@ -41,6 +43,7 @@ impl TranslationOptions {
             name_prefix: "app".to_string(),
             invalidation: None,
             overrides: None,
+            disable_cache: false,
         }
     }
 }
@@ -100,7 +103,8 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
         // Ignore if removed or not in the set of added keys.
         if !invalidated
             && (diff.delete.contains(entry.key().as_ref())
-                || !diff.create.contains(entry.key().as_ref()))
+                || (!diff.create.contains(entry.key().as_ref())
+                    && !diff.update.contains(entry.key().as_ref())))
         {
             continue;
         }
@@ -144,7 +148,9 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
 
             if !options.dry_run {
                 translatable.push(text.as_ref().to_string());
-                index.cache.add_entry(options.target_lang, entry.clone());
+                if !options.disable_cache {
+                    index.cache.add_entry(options.target_lang, entry.clone());
+                }
                 cached.push(CachedEntry::Translate { entry, names });
             } else {
                 cached.push(CachedEntry::Entry(entry));
@@ -210,7 +216,9 @@ pub async fn translate(api: DeeplApi, options: TranslationOptions) -> Result<Tra
     }
 
     // Update the cache file
-    index.write_cache()?;
+    if !options.disable_cache {
+        index.write_cache()?;
+    }
 
     Ok(TranslateResult {
         index,

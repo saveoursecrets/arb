@@ -27,6 +27,7 @@ pub async fn overrides() -> Result<()> {
         name_prefix: "app".to_owned(),
         invalidation: None,
         overrides: Some(overrides),
+        disable_cache: false,
     };
 
     let result = translate(api, options).await?;

@@ -1,6 +1,4 @@
 {
-    "@@locale": "en",
-
     "links": "By creating an account you agree to our <a href=\"{privacyUrl}\">privacy policy</a>, <a href=\"{termsUrl}\">terms of use</a> and <a href=\"{acceptableUseUrl}\">acceptable use policy</a>.",
     "@links": {
         "placeholders": {
@@ -14,7 +12,5 @@
                 "type": "String"
             }
         }
-    },
-
-    "@_END": {}
+    }
 }
