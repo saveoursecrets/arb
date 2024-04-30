@@ -7,9 +7,7 @@ use serde_json::Value;
 
 #[tokio::test]
 pub async fn html_translate() -> Result<()> {
-    let api = DeeplApi::new(ApiOptions::new_free(
-        &std::env::var("DEEPL_API_KEY").unwrap(),
-    ));
+    let api = DeeplApi::new(ApiOptions::new(&std::env::var("DEEPL_API_KEY").unwrap()));
     let index = "tests/fixtures/html.yaml";
     let options = TranslationOptions::new(index, Lang::Fr);
     let result = translate(api, options).await?;

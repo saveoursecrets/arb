@@ -197,12 +197,28 @@ pub struct ApiOptions {
     /// Endpoint URL.
     endpoint: Url,
     /// Custom HTTP client.
-    pub client: Option<Client>,
+    client: Option<Client>,
 }
 
 impl ApiOptions {
+    /// Create API options.
+    pub fn new(api_key: impl AsRef<str>) -> Self {
+        if api_key.as_ref().ends_with(":fx") {
+            Self::new_free(api_key)
+        } else {
+            Self::new_pro(api_key)
+        }
+    }
+
+    /// Create API options with a client.
+    pub fn new_with_client(api_key: impl AsRef<str>, client: Client) -> Self {
+        let mut options = Self::new(api_key);
+        options.client = Some(client);
+        options
+    }
+
     /// API for the free endpoint.
-    pub fn new_free(api_key: impl AsRef<str>) -> Self {
+    fn new_free(api_key: impl AsRef<str>) -> Self {
         Self {
             api_key: api_key.as_ref().to_owned(),
             endpoint: Url::parse(ENDPOINT_FREE).unwrap(),
@@ -211,7 +227,7 @@ impl ApiOptions {
     }
 
     /// API for the pro endpoint.
-    pub fn new_pro(api_key: impl AsRef<str>) -> Self {
+    fn new_pro(api_key: impl AsRef<str>) -> Self {
         Self {
             api_key: api_key.as_ref().to_owned(),
             endpoint: Url::parse(ENDPOINT_PRO).unwrap(),

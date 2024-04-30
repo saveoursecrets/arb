@@ -8,9 +8,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 #[tokio::test]
 pub async fn overrides() -> Result<()> {
-    let api = DeeplApi::new(ApiOptions::new_free(
-        &std::env::var("DEEPL_API_KEY").unwrap(),
-    ));
+    let api = DeeplApi::new(ApiOptions::new(&std::env::var("DEEPL_API_KEY").unwrap()));
 
     let mut overrides_file = ArbFile::default();
     let value = Value::String("Salut".to_string());

@@ -8,9 +8,7 @@ use std::path::PathBuf;
 
 #[tokio::test]
 pub async fn diff_cache() -> Result<()> {
-    let api = DeeplApi::new(ApiOptions::new_free(
-        &std::env::var("DEEPL_API_KEY").unwrap(),
-    ));
+    let api = DeeplApi::new(ApiOptions::new(&std::env::var("DEEPL_API_KEY").unwrap()));
 
     let index = "tests/fixtures/diff_update.yaml";
     let options = TranslationOptions {

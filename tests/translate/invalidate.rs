@@ -7,9 +7,7 @@ use std::path::PathBuf;
 
 #[tokio::test]
 pub async fn invalidate_all() -> Result<()> {
-    let api = DeeplApi::new(ApiOptions::new_free(
-        &std::env::var("DEEPL_API_KEY").unwrap(),
-    ));
+    let api = DeeplApi::new(ApiOptions::new(&std::env::var("DEEPL_API_KEY").unwrap()));
 
     let index = "tests/fixtures/invalidate.yaml";
     let options = TranslationOptions {
@@ -28,9 +26,7 @@ pub async fn invalidate_all() -> Result<()> {
 
 #[tokio::test]
 pub async fn invalidate_keys() -> Result<()> {
-    let api = DeeplApi::new(ApiOptions::new_free(
-        &std::env::var("DEEPL_API_KEY").unwrap(),
-    ));
+    let api = DeeplApi::new(ApiOptions::new(&std::env::var("DEEPL_API_KEY").unwrap()));
 
     let index = "tests/fixtures/invalidate.yaml";
     let options = TranslationOptions {

@@ -25,10 +25,6 @@ pub enum Command {
         #[clap(short, long, hide_env_values = true, env = "DEEPL_API_KEY")]
         api_key: String,
 
-        /// Use DeepL API pro endpoint.
-        #[clap(short, long)]
-        pro: bool,
-
         /// Invalidate all keys.
         #[clap(short, long)]
         force: bool,
@@ -67,10 +63,6 @@ pub enum Command {
         #[clap(short, long, hide_env_values = true, env = "DEEPL_API_KEY")]
         api_key: String,
 
-        /// Use DeepL API pro endpoint.
-        #[clap(short, long)]
-        pro: bool,
-
         /// Invalidate all keys.
         #[clap(short, long)]
         force: bool,
@@ -105,10 +97,6 @@ pub enum Command {
         /// API key.
         #[clap(short, long, hide_env_values = true, env = "DEEPL_API_KEY")]
         api_key: String,
-
-        /// Use DeepL API pro endpoint.
-        #[clap(short, long)]
-        pro: bool,
     },
     /// List language application resource bundles.
     #[clap(alias = "ls")]
@@ -125,10 +113,6 @@ pub enum Command {
         /// API key.
         #[clap(short, long, hide_env_values = true, env = "DEEPL_API_KEY")]
         api_key: String,
-
-        /// Use DeepL API pro endpoint.
-        #[clap(short, long)]
-        pro: bool,
 
         /// Language type (source or target).
         #[clap(short, long, default_value = "source")]
@@ -168,7 +152,6 @@ pub async fn main() -> anyhow::Result<()> {
         Command::Update {
             file,
             api_key,
-            pro,
             write,
             name_prefix,
             dry_run,
@@ -186,7 +169,6 @@ pub async fn main() -> anyhow::Result<()> {
                     *lang,
                     file.clone(),
                     api_key.clone(),
-                    pro,
                     write,
                     name_prefix.clone(),
                     dry_run,
@@ -203,7 +185,6 @@ pub async fn main() -> anyhow::Result<()> {
             lang,
             file,
             api_key,
-            pro,
             write,
             name_prefix,
             dry_run,
@@ -225,7 +206,6 @@ pub async fn main() -> anyhow::Result<()> {
                 lang,
                 file,
                 api_key,
-                pro,
                 write,
                 name_prefix,
                 dry_run,
@@ -235,12 +215,8 @@ pub async fn main() -> anyhow::Result<()> {
             )
             .await?;
         }
-        Command::Usage { api_key, pro } => {
-            let options = if pro {
-                ApiOptions::new_pro(api_key)
-            } else {
-                ApiOptions::new_free(api_key)
-            };
+        Command::Usage { api_key } => {
+            let options = ApiOptions::new(api_key);
             let api = DeeplApi::new(options);
             let usage = api.usage().await?;
             serde_json::to_writer_pretty(std::io::stdout(), &usage)?;
@@ -248,14 +224,9 @@ pub async fn main() -> anyhow::Result<()> {
         }
         Command::Languages {
             api_key,
-            pro,
             language_type,
         } => {
-            let options = if pro {
-                ApiOptions::new_pro(api_key)
-            } else {
-                ApiOptions::new_free(api_key)
-            };
+            let options = ApiOptions::new(api_key);
             let api = DeeplApi::new(options);
             let langs = api.languages(language_type).await?;
             serde_json::to_writer_pretty(std::io::stdout(), &langs)?;
@@ -291,7 +262,6 @@ async fn translate_language(
     lang: Lang,
     file: PathBuf,
     api_key: String,
-    pro: bool,
     write: bool,
     name_prefix: String,
     dry_run: bool,
@@ -307,12 +277,7 @@ async fn translate_language(
         None
     };
 
-    let options = if pro {
-        ApiOptions::new_pro(api_key)
-    } else {
-        ApiOptions::new_free(api_key)
-    };
-    let api = DeeplApi::new(options);
+    let api = DeeplApi::new(ApiOptions::new(api_key));
     let options = TranslationOptions {
         index_file: file,
         target_lang: lang,
