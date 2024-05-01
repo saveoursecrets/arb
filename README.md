@@ -14,13 +14,13 @@ Convert all the strings from the template language into French and write the tra
 
 ```
 export DEEPL_API_KEY="<api key>"
+arb translate --lang fr --apply l10n.yaml
+```
+
+To see what changes would be made omit the `--apply` option which will skip calls to the [DeepL][] API and not write files to disc:
+
+```
 arb translate --lang fr l10n.yaml
-```
-
-To see what changes would be made use `--dry-run` which will skip calls to the [DeepL][] API:
-
-```
-arb translate --lang fr --dry-run l10n.yaml
 ```
 
 After making changes to the template resource bundle run the `update` command to sync translations:

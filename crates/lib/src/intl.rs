@@ -306,10 +306,6 @@ impl Intl {
         api: &DeeplApi,
         options: TranslationOptions,
     ) -> Result<TranslateResult> {
-        if options.dry_run {
-            tracing::warn!("dry run");
-        }
-
         tracing::info!(lang = %options.target_lang, "translate");
 
         let template = self.template_content()?;
@@ -484,10 +480,6 @@ impl Intl {
         // Update the cache file
         if !options.disable_cache {
             self.write_cache()?;
-        }
-
-        if options.dry_run {
-            tracing::warn!("dry run");
         }
 
         Ok(TranslateResult {

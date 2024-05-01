@@ -37,9 +37,9 @@ pub enum Command {
         #[clap(short, long)]
         overrides: Option<PathBuf>,
 
-        /// Dry run.
-        #[clap(short, long)]
-        dry_run: bool,
+        /// Translate and write to disc.
+        #[clap(long)]
+        apply: bool,
 
         /// File name prefix.
         #[clap(short, long)]
@@ -72,9 +72,9 @@ pub enum Command {
         #[clap(short, long)]
         overrides: Option<PathBuf>,
         */
-        /// Dry run.
-        #[clap(short, long)]
-        dry_run: bool,
+        /// Translate and write to disc.
+        #[clap(long)]
+        apply: bool,
 
         /// File name prefix.
         #[clap(short, long)]
@@ -145,7 +145,7 @@ pub async fn main() -> anyhow::Result<()> {
             file,
             api_key,
             name_prefix,
-            dry_run,
+            apply,
             force,
             invalidate,
             // overrides,
@@ -162,13 +162,17 @@ pub async fn main() -> anyhow::Result<()> {
                     file.clone(),
                     api_key.clone(),
                     name_prefix.clone(),
-                    dry_run,
+                    apply,
                     force,
                     invalidate.clone(),
                     // overrides,
                     None,
                 )
                 .await?;
+            }
+
+            if !apply {
+                tracing::warn!("dry run, use --apply to translate");
             }
         }
 
@@ -177,7 +181,7 @@ pub async fn main() -> anyhow::Result<()> {
             file,
             api_key,
             name_prefix,
-            dry_run,
+            apply,
             force,
             invalidate,
             overrides,
@@ -197,12 +201,16 @@ pub async fn main() -> anyhow::Result<()> {
                 file,
                 api_key,
                 name_prefix,
-                dry_run,
+                apply,
                 force,
                 invalidate,
                 overrides,
             )
             .await?;
+
+            if !apply {
+                tracing::warn!("dry run, use --apply to translate");
+            }
         }
         Command::Usage { api_key } => {
             let options = ApiOptions::new(api_key);
@@ -260,7 +268,7 @@ async fn translate_language(
     file: PathBuf,
     api_key: String,
     name_prefix: Option<String>,
-    dry_run: bool,
+    apply: bool,
     force: bool,
     invalidate: Vec<String>,
     overrides: Option<HashMap<Lang, ArbFile>>,
@@ -276,7 +284,7 @@ async fn translate_language(
     let api = DeeplApi::new(ApiOptions::new(api_key));
     let options = TranslationOptions {
         target_lang: lang,
-        dry_run,
+        dry_run: !apply,
         invalidation,
         overrides,
         disable_cache: false,
@@ -285,7 +293,7 @@ async fn translate_language(
     let mut intl = new_intl(file, name_prefix)?;
     let result = intl.translate(&api, options).await?;
 
-    if !dry_run {
+    if apply {
         let content = serde_json::to_string_pretty(&result.translated)?;
         let file_path = intl.file_path(lang)?;
         tracing::info!(path = %file_path.display(), "write file");
