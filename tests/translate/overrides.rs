@@ -1,10 +1,10 @@
 use anyhow::Result;
 use arb_lib::{
     deepl::{ApiOptions, DeeplApi, Lang},
-    translate, ArbEntry, ArbFile, ArbValue, TranslationOptions,
+    ArbEntry, ArbFile, ArbValue, Intl, TranslationOptions,
 };
 use serde_json::Value;
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 #[tokio::test]
 pub async fn overrides() -> Result<()> {
@@ -19,16 +19,15 @@ pub async fn overrides() -> Result<()> {
 
     let index = "tests/fixtures/invalidate.yaml";
     let options = TranslationOptions {
-        index_file: PathBuf::from(index),
         target_lang: Lang::Fr,
         dry_run: false,
-        name_prefix: "app".to_owned(),
         invalidation: None,
         overrides: Some(overrides),
         disable_cache: false,
     };
 
-    let result = translate(api, options).await?;
+    let mut intl = Intl::new(index)?;
+    let result = intl.translate(&api, options).await?;
     // Not translated because overriden
     assert_eq!(0, result.length);
 

@@ -1,10 +1,9 @@
 use anyhow::Result;
 use arb_lib::{
     deepl::{ApiOptions, DeeplApi, Lang},
-    translate, ArbValue, Invalidation, TranslationOptions,
+    ArbValue, Intl, Invalidation, TranslationOptions,
 };
 use serde_json::Value;
-use std::path::PathBuf;
 
 #[tokio::test]
 pub async fn diff_cache() -> Result<()> {
@@ -12,15 +11,14 @@ pub async fn diff_cache() -> Result<()> {
 
     let index = "tests/fixtures/diff_update.yaml";
     let options = TranslationOptions {
-        index_file: PathBuf::from(index),
         target_lang: Lang::Fr,
         dry_run: false,
-        name_prefix: "app".to_owned(),
         invalidation: Some(Invalidation::All),
         overrides: None,
         disable_cache: true,
     };
-    let result = translate(api, options).await?;
+    let mut intl = Intl::new(index)?;
+    let result = intl.translate(&api, options).await?;
     assert_eq!(1, result.length);
 
     let message = result.translated.lookup("message");

@@ -1,12 +1,12 @@
 use anyhow::Result;
 use arb_lib::{
     deepl::{ApiOptions, DeeplApi, Lang, LanguageType},
-    translate, ArbFile, ArbIndex, Invalidation, TranslationOptions,
+    ArbFile, Intl, Invalidation, TranslationOptions,
 };
 use clap::{Parser, Subcommand};
 use std::{
     collections::{BTreeMap, HashMap},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 #[derive(Parser, Debug)]
@@ -42,8 +42,8 @@ pub enum Command {
         dry_run: bool,
 
         /// File name prefix.
-        #[clap(short, long, default_value = "app")]
-        name_prefix: String,
+        #[clap(short, long)]
+        name_prefix: Option<String>,
 
         /// Target language.
         #[clap(short, long)]
@@ -77,8 +77,8 @@ pub enum Command {
         dry_run: bool,
 
         /// File name prefix.
-        #[clap(short, long, default_value = "app")]
-        name_prefix: String,
+        #[clap(short, long)]
+        name_prefix: Option<String>,
 
         /// Localization YAML file.
         file: PathBuf,
@@ -94,8 +94,8 @@ pub enum Command {
     #[clap(alias = "ls")]
     List {
         /// File name prefix.
-        #[clap(short, long, default_value = "app")]
-        name_prefix: String,
+        #[clap(short, long)]
+        name_prefix: Option<String>,
 
         /// Localization YAML file.
         file: PathBuf,
@@ -113,8 +113,8 @@ pub enum Command {
     /// Diff template with language(s).
     Diff {
         /// File name prefix.
-        #[clap(short, long, default_value = "app")]
-        name_prefix: String,
+        #[clap(short, long)]
+        name_prefix: Option<String>,
 
         /// Languages to compare to the template language.
         #[clap(short, long)]
@@ -150,7 +150,8 @@ pub async fn main() -> anyhow::Result<()> {
             invalidate,
             // overrides,
         } => {
-            let index = ArbIndex::parse_yaml(&file, name_prefix.clone())?;
+            let index = new_intl(&file, name_prefix.clone())?;
+
             let translations = index.list_translated()?;
             for lang in translations.keys() {
                 if lang == index.template_language() {
@@ -226,7 +227,7 @@ pub async fn main() -> anyhow::Result<()> {
             languages,
         } => {
             let mut output = BTreeMap::new();
-            let index = ArbIndex::parse_yaml(file, name_prefix)?;
+            let index = new_intl(file, name_prefix)?;
             let template = index.template_content()?;
             for lang in languages {
                 let lang_file = index.load_or_default(lang)?;
@@ -237,7 +238,7 @@ pub async fn main() -> anyhow::Result<()> {
             println!();
         }
         Command::List { file, name_prefix } => {
-            let index = ArbIndex::parse_yaml(file, name_prefix)?;
+            let index = new_intl(file, name_prefix)?;
             let output = index.list_translated()?;
             serde_json::to_writer_pretty(std::io::stdout(), &output)?;
             println!();
@@ -246,11 +247,19 @@ pub async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn new_intl(path: impl AsRef<Path>, name_prefix: Option<String>) -> Result<Intl> {
+    Ok(if let Some(name_prefix) = name_prefix {
+        Intl::new_with_prefix(path, name_prefix)?
+    } else {
+        Intl::new(path)?
+    })
+}
+
 async fn translate_language(
     lang: Lang,
     file: PathBuf,
     api_key: String,
-    name_prefix: String,
+    name_prefix: Option<String>,
     dry_run: bool,
     force: bool,
     invalidate: Vec<String>,
@@ -266,19 +275,19 @@ async fn translate_language(
 
     let api = DeeplApi::new(ApiOptions::new(api_key));
     let options = TranslationOptions {
-        index_file: file,
         target_lang: lang,
         dry_run,
-        name_prefix,
         invalidation,
         overrides,
         disable_cache: false,
     };
-    let result = translate(api, options).await?;
+
+    let mut intl = new_intl(file, name_prefix)?;
+    let result = intl.translate(&api, options).await?;
 
     if !dry_run {
         let content = serde_json::to_string_pretty(&result.translated)?;
-        let file_path = result.index.file_path(lang)?;
+        let file_path = intl.file_path(lang)?;
         tracing::info!(path = %file_path.display(), "write file");
         std::fs::write(&file_path, &content)?;
     }

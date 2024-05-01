@@ -1,9 +1,8 @@
 use anyhow::Result;
 use arb_lib::{
     deepl::{ApiOptions, DeeplApi, Lang},
-    translate, Invalidation, TranslationOptions,
+    Intl, Invalidation, TranslationOptions,
 };
-use std::path::PathBuf;
 
 #[tokio::test]
 pub async fn invalidate_all() -> Result<()> {
@@ -11,15 +10,14 @@ pub async fn invalidate_all() -> Result<()> {
 
     let index = "tests/fixtures/invalidate.yaml";
     let options = TranslationOptions {
-        index_file: PathBuf::from(index),
         target_lang: Lang::Fr,
         dry_run: false,
-        name_prefix: "app".to_owned(),
         invalidation: Some(Invalidation::All),
         overrides: None,
         disable_cache: false,
     };
-    let result = translate(api, options).await?;
+    let mut intl = Intl::new(index)?;
+    let result = intl.translate(&api, options).await?;
     assert_eq!(1, result.length);
     Ok(())
 }
@@ -30,15 +28,14 @@ pub async fn invalidate_keys() -> Result<()> {
 
     let index = "tests/fixtures/invalidate.yaml";
     let options = TranslationOptions {
-        index_file: PathBuf::from(index),
         target_lang: Lang::Fr,
         dry_run: false,
-        name_prefix: "app".to_owned(),
         invalidation: Some(Invalidation::Keys(vec!["message".to_owned()])),
         overrides: None,
         disable_cache: false,
     };
-    let result = translate(api, options).await?;
+    let mut intl = Intl::new(index)?;
+    let result = intl.translate(&api, options).await?;
     assert_eq!(1, result.length);
     Ok(())
 }

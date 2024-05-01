@@ -1,7 +1,7 @@
 use anyhow::Result;
 use arb_lib::{
     deepl::{ApiOptions, DeeplApi, Lang},
-    translate, ArbValue, TranslationOptions,
+    ArbValue, Intl, TranslationOptions,
 };
 use serde_json::Value;
 
@@ -9,8 +9,9 @@ use serde_json::Value;
 pub async fn basic_translate() -> Result<()> {
     let api = DeeplApi::new(ApiOptions::new(&std::env::var("DEEPL_API_KEY").unwrap()));
     let index = "tests/fixtures/basic.yaml";
-    let options = TranslationOptions::new(index, Lang::Fr);
-    let result = translate(api, options).await?;
+    let mut intl = Intl::new(index)?;
+    let options = TranslationOptions::new(Lang::Fr);
+    let result = intl.translate(&api, options).await?;
 
     // println!("{:#?}", result.translated);
 

@@ -1,9 +1,9 @@
 use anyhow::Result;
-use arb_lib::{deepl::Lang, ArbIndex};
+use arb_lib::{deepl::Lang, Intl};
 
 #[test]
 pub fn diff_create() -> Result<()> {
-    let index = ArbIndex::parse_yaml("tests/fixtures/diff_create.yaml", "app")?;
+    let index = Intl::new("tests/fixtures/diff_create.yaml")?;
 
     let template = index.template_content()?;
     let french = index.load(Lang::Fr)?;
@@ -16,7 +16,7 @@ pub fn diff_create() -> Result<()> {
 
 #[test]
 pub fn diff_update() -> Result<()> {
-    let index = ArbIndex::parse_yaml("tests/fixtures/diff_update.yaml", "app")?;
+    let index = Intl::new("tests/fixtures/diff_update.yaml")?;
 
     let template = index.template_content()?;
     let french = index.load(Lang::Fr)?;
@@ -29,7 +29,7 @@ pub fn diff_update() -> Result<()> {
 
 #[test]
 pub fn diff_delete() -> Result<()> {
-    let index = ArbIndex::parse_yaml("tests/fixtures/diff_delete.yaml", "app")?;
+    let index = Intl::new("tests/fixtures/diff_delete.yaml")?;
 
     let template = index.template_content()?;
     let french = index.load(Lang::Fr)?;

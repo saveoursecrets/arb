@@ -1,9 +1,9 @@
 use anyhow::Result;
-use arb_lib::{ArbIndex, ArbKey};
+use arb_lib::{ArbKey, Intl};
 
 #[test]
 pub fn parse_index_with_template() -> Result<()> {
-    let index = ArbIndex::parse_yaml("tests/fixtures/basic.yaml", "app")?;
+    let index = Intl::new("tests/fixtures/basic.yaml")?;
     assert_eq!("basic", index.arb_dir());
     assert_eq!("app_en.arb", index.template_arb_file());
 
