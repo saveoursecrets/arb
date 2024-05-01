@@ -8,6 +8,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
 };
+use yaml_rust2::YamlLoader;
 
 const ARB_DIR: &str = "arb-dir";
 const TEMPLATE_ARB_FILE: &str = "template-arb-file";
@@ -110,6 +111,13 @@ enum CachedEntry<'a> {
 }
 
 /// Internationalization index file.
+///
+/// Translations are loaded by convention from the directory pointed
+/// to by the `arb-dir`. The default convention is to use `app` as the
+/// prefix concatenated with a lowercase language identifier delimited
+/// by an underscore. Language identifiers in file names should use
+/// underscores and ***not hyphens***. For example, the file name for
+/// the `EN-US` language would be `app_en_us.arb`.
 #[derive(Debug)]
 pub struct Intl {
     file_path: PathBuf,
@@ -128,7 +136,14 @@ impl Intl {
 
     /// Load the YAML file with a given file name prefix.
     pub fn new_with_prefix(path: impl AsRef<Path>, name_prefix: impl AsRef<str>) -> Result<Self> {
-        use yaml_rust2::YamlLoader;
+        if !path.as_ref().try_exists()? {
+            return Err(Error::NoFile(path.as_ref().to_path_buf()));
+        }
+
+        if !path.as_ref().is_file() {
+            return Err(Error::NotFile(path.as_ref().to_path_buf()));
+        }
+
         let content = std::fs::read_to_string(path.as_ref())?;
         let docs = YamlLoader::load_from_str(&content)?;
 
@@ -241,19 +256,45 @@ impl Intl {
         } else {
             arb_dir
         };
+
+        if !parent.is_dir() {
+            return Err(Error::NotDirectory(parent));
+        }
+
         Ok(parent)
     }
 
-    /// List translated languages.
+    /// List translations in the configured `arb-dir`.
     pub fn list_translated(&self) -> Result<BTreeMap<Lang, PathBuf>> {
+        self.list_directory(self.arb_directory()?)
+    }
+
+    /// List translated languages in a directory.
+    pub fn list_directory(&self, dir: impl AsRef<Path>) -> Result<BTreeMap<Lang, PathBuf>> {
         let mut output = BTreeMap::new();
-        let dir = self.arb_directory()?;
-        for entry in std::fs::read_dir(&dir)? {
+
+        if !dir.as_ref().is_dir() {
+            return Err(Error::NotDirectory(dir.as_ref().to_path_buf()));
+        }
+
+        for entry in std::fs::read_dir(dir.as_ref())? {
             let entry = entry?;
             let path = entry.path();
             if let (true, Some(lang)) = (path.is_file(), self.parse_file_name(&path)) {
                 output.insert(lang, path);
             }
+        }
+        Ok(output)
+    }
+
+    /// Attempt to load override definitions.
+    pub fn load_overrides(&self, dir: impl AsRef<Path>) -> Result<HashMap<Lang, ArbFile>> {
+        let mut output = HashMap::new();
+        let langs = self.list_directory(dir.as_ref())?;
+        for (lang, path) in langs {
+            let content = std::fs::read_to_string(&path)?;
+            let file: ArbFile = serde_json::from_str(&content)?;
+            output.insert(lang, file);
         }
         Ok(output)
     }
@@ -278,25 +319,6 @@ impl Intl {
         }
     }
 
-    fn read_cache(&self) -> Result<ArbCache> {
-        let cache_path = self.arb_directory()?.join(CACHE_FILE);
-        if cache_path.try_exists()? {
-            let mut cache_file = std::fs::File::open(cache_path)?;
-            Ok(serde_json::from_reader(&mut cache_file)?)
-        } else {
-            Ok(ArbCache::default())
-        }
-    }
-
-    pub(super) fn write_cache(&self) -> Result<()> {
-        let cache_path = self.arb_directory()?.join(CACHE_FILE);
-        let mut cache_file = std::fs::File::create(cache_path)?;
-        serde_json::to_writer_pretty(&mut cache_file, &self.cache)?;
-        Ok(())
-    }
-}
-
-impl Intl {
     /// Translate to a target language.
     ///
     /// Placeholders are converted to XML tags and ignored from
@@ -487,5 +509,22 @@ impl Intl {
             translated: output,
             length,
         })
+    }
+
+    fn read_cache(&self) -> Result<ArbCache> {
+        let cache_path = self.arb_directory()?.join(CACHE_FILE);
+        if cache_path.try_exists()? {
+            let mut cache_file = std::fs::File::open(cache_path)?;
+            Ok(serde_json::from_reader(&mut cache_file)?)
+        } else {
+            Ok(ArbCache::default())
+        }
+    }
+
+    fn write_cache(&self) -> Result<()> {
+        let cache_path = self.arb_directory()?.join(CACHE_FILE);
+        let mut cache_file = std::fs::File::create(cache_path)?;
+        serde_json::to_writer_pretty(&mut cache_file, &self.cache)?;
+        Ok(())
     }
 }

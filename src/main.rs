@@ -33,7 +33,7 @@ pub enum Command {
         #[clap(short, long)]
         invalidate: Vec<String>,
 
-        /// Human-translated overrides for the target language.
+        /// Directory of human-translated overrides.
         #[clap(short, long)]
         overrides: Option<PathBuf>,
 
@@ -67,11 +67,10 @@ pub enum Command {
         #[clap(short, long)]
         invalidate: Vec<String>,
 
-        /*
-        /// Human-translated overrides for the target language.
+        /// Directory of human-translated overrides.
         #[clap(short, long)]
         overrides: Option<PathBuf>,
-        */
+
         /// Translate and write to disc.
         #[clap(long)]
         apply: bool,
@@ -148,25 +147,29 @@ pub async fn main() -> anyhow::Result<()> {
             apply,
             force,
             invalidate,
-            // overrides,
+            overrides,
         } => {
-            let index = new_intl(&file, name_prefix.clone())?;
+            let mut intl = new_intl(&file, name_prefix.clone())?;
 
-            let translations = index.list_translated()?;
+            let overrides = if let Some(dir) = &overrides {
+                Some(intl.load_overrides(dir)?)
+            } else {
+                None
+            };
+
+            let translations = intl.list_translated()?;
             for lang in translations.keys() {
-                if lang == index.template_language() {
+                if lang == intl.template_language() {
                     continue;
                 }
                 translate_language(
+                    &mut intl,
                     *lang,
-                    file.clone(),
                     api_key.clone(),
-                    name_prefix.clone(),
                     apply,
                     force,
                     invalidate.clone(),
-                    // overrides,
-                    None,
+                    overrides.clone(),
                 )
                 .await?;
             }
@@ -186,25 +189,16 @@ pub async fn main() -> anyhow::Result<()> {
             invalidate,
             overrides,
         } => {
-            let overrides = if let Some(overrides) = &overrides {
-                let content = std::fs::read_to_string(overrides)?;
-                let file: ArbFile = serde_json::from_str(&content)?;
-                let mut map = HashMap::new();
-                map.insert(lang, file);
-                Some(map)
+            let mut intl = new_intl(&file, name_prefix.clone())?;
+
+            let overrides = if let Some(dir) = &overrides {
+                Some(intl.load_overrides(dir)?)
             } else {
                 None
             };
 
             translate_language(
-                lang,
-                file,
-                api_key,
-                name_prefix,
-                apply,
-                force,
-                invalidate,
-                overrides,
+                &mut intl, lang, api_key, apply, force, invalidate, overrides,
             )
             .await?;
 
@@ -264,10 +258,9 @@ fn new_intl(path: impl AsRef<Path>, name_prefix: Option<String>) -> Result<Intl>
 }
 
 async fn translate_language(
+    intl: &mut Intl,
     lang: Lang,
-    file: PathBuf,
     api_key: String,
-    name_prefix: Option<String>,
     apply: bool,
     force: bool,
     invalidate: Vec<String>,
@@ -290,7 +283,6 @@ async fn translate_language(
         disable_cache: false,
     };
 
-    let mut intl = new_intl(file, name_prefix)?;
     let result = intl.translate(&api, options).await?;
 
     if apply {

@@ -7,6 +7,15 @@ pub enum Error {
     /// File does not exist.
     #[error("file '{0}' does not exist")]
     NoFile(PathBuf),
+
+    /// File does not exist.
+    #[error("path '{0}' is not a file")]
+    NotFile(PathBuf),
+
+    /// File does not exist.
+    #[error("path '{0}' is not a directory")]
+    NotDirectory(PathBuf),
+
     /// Path has not parent.
     #[error("no parent for path '{0}'")]
     NoParentPath(PathBuf),

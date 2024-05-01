@@ -21,7 +21,7 @@ pub struct FileDiff {
 }
 
 /// Content of an application resource bundle file.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ArbFile {
     #[serde(flatten)]
     pub(crate) contents: IndexMap<String, Value>,
