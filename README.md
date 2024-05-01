@@ -41,6 +41,10 @@ Once a translation has been created the program will use a diff of the template 
 
 If you have human improvements or corrections to the machine-generated translations you can use the `--overrides` option to prefer human provided translations.
 
+### Placeholders
+
+To prevent placeholders from being translated they are converted to XML tags (`<ph>`) and the API requests are configured to ignore translations for those tags.
+
 ### Test
 
 Set an API key to run the tests:
