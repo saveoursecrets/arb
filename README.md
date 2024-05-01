@@ -35,7 +35,7 @@ For more commands and options run `arb help`.
 
 ### Cache
 
-Once a translation has been created the program will use a diff of the template keys to only translate when necessary and delete translations that have been removed. In order to detect changes to strings a cache file is kept in the application resource bundle directory named `.cache.arb`.
+Once a translation has been created the program will use a diff of the template keys to only translate when necessary and delete translations that have been removed. In order to detect changes to strings a cache file is kept in the application resource bundle directory named `.cache.json`.
 
 ### Overrides
 

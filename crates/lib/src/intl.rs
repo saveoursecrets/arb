@@ -12,7 +12,7 @@ use yaml_rust2::YamlLoader;
 
 const ARB_DIR: &str = "arb-dir";
 const TEMPLATE_ARB_FILE: &str = "template-arb-file";
-const CACHE_FILE: &str = ".cache.arb";
+const CACHE_FILE: &str = ".cache.json";
 
 /// Cache of template strings used for translations.
 ///
