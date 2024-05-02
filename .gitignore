@@ -1,3 +1,6 @@
+.DS_Store
 /target
 .cache.json
 !tests/fixtures/diff_update/.cache.json
+*.csv
+*.bak

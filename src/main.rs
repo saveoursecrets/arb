@@ -4,10 +4,21 @@ use arb_lib::{
     ArbFile, Intl, Invalidation, TranslationOptions,
 };
 use clap::{Parser, Subcommand};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
 };
+
+use csv::{Writer, WriterBuilder};
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CsvRow {
+    id: String,
+    source: String,
+    target: String,
+    correction: String,
+}
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -118,6 +129,23 @@ pub enum Command {
         /// Languages to compare to the template language.
         #[clap(short, long)]
         languages: Vec<Lang>,
+
+        /// Localization YAML file.
+        file: PathBuf,
+    },
+    /// Generate CSV comparison between template and a target language.
+    Compare {
+        /// File name prefix.
+        #[clap(short, long)]
+        name_prefix: Option<String>,
+
+        /// Target language.
+        #[clap(short, long)]
+        lang: Lang,
+
+        /// Output file for CSV document.
+        #[clap(short, long)]
+        output: Option<PathBuf>,
 
         /// Localization YAML file.
         file: PathBuf,
@@ -245,6 +273,57 @@ pub async fn main() -> anyhow::Result<()> {
             serde_json::to_writer_pretty(std::io::stdout(), &output)?;
             println!();
         }
+        Command::Compare {
+            file,
+            name_prefix,
+            output,
+            lang,
+        } => {
+            let index = new_intl(file, name_prefix)?;
+            let template_lang = index.template_language();
+            let template = index.template_content()?;
+            let translated = index.list_translated()?;
+            let mut rows: Vec<CsvRow> = Vec::new();
+            for (language, path) in translated {
+                if language != lang {
+                    continue;
+                }
+
+                let contents = std::fs::read_to_string(path)?;
+                let file: ArbFile = serde_json::from_str(&contents)?;
+
+                for entry in template.entries() {
+                    if entry.is_translatable() {
+                        if let Some(target) = file.lookup(entry.key().as_ref()) {
+                            rows.push(CsvRow {
+                                id: entry.key().as_ref().to_string(),
+                                source: entry
+                                    .value()
+                                    .as_str()
+                                    .map(|s| s.to_string())
+                                    .unwrap_or_default(),
+                                target: target
+                                    .value()
+                                    .as_str()
+                                    .map(|s| s.to_string())
+                                    .unwrap_or_default(),
+                                correction: String::new(),
+                            });
+                        }
+                    }
+                }
+            }
+
+            if let Some(path) = output {
+                let wtr = WriterBuilder::new().has_headers(false).from_path(path)?;
+                write_csv_rows(wtr, rows, *template_lang, lang)?;
+            } else {
+                let wtr = WriterBuilder::new()
+                    .has_headers(false)
+                    .from_writer(std::io::stdout());
+                write_csv_rows(wtr, rows, *template_lang, lang)?;
+            }
+        }
     }
     Ok(())
 }
@@ -291,5 +370,27 @@ async fn translate_language(
         tracing::info!(path = %file_path.display(), "write file");
         std::fs::write(&file_path, &content)?;
     }
+    Ok(())
+}
+
+fn write_csv_rows<W: std::io::Write>(
+    mut wtr: Writer<W>,
+    rows: Vec<CsvRow>,
+    source: Lang,
+    target: Lang,
+) -> Result<()> {
+    let source_header = format!("Source ({})", source);
+    let target_header = format!("Target ({})", target);
+    let correction_header = format!("Correction ({})", target);
+    wtr.write_record(&[
+        "Identifier",
+        &source_header,
+        &target_header,
+        &correction_header,
+    ])?;
+    for row in rows {
+        wtr.serialize(&row)?;
+    }
+    wtr.flush()?;
     Ok(())
 }
