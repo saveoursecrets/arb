@@ -133,7 +133,7 @@ pub enum Command {
         /// Localization YAML file.
         file: PathBuf,
     },
-    /// Generate CSV comparison between template and a target language.
+    /// CSV comparison between template and a target language.
     Compare {
         /// File name prefix.
         #[clap(short, long)]
