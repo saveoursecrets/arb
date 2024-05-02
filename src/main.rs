@@ -45,7 +45,7 @@ pub enum Command {
         invalidate: Vec<String>,
 
         /// Directory of human-translated overrides.
-        #[clap(short, long)]
+        #[clap(long)]
         overrides: Option<PathBuf>,
 
         /// Translate and write to disc.
@@ -79,7 +79,7 @@ pub enum Command {
         invalidate: Vec<String>,
 
         /// Directory of human-translated overrides.
-        #[clap(short, long)]
+        #[clap(long)]
         overrides: Option<PathBuf>,
 
         /// Translate and write to disc.
@@ -143,6 +143,10 @@ pub enum Command {
         #[clap(short, long)]
         lang: Lang,
 
+        /// Directory of human-translated overrides.
+        #[clap(long)]
+        overrides: Option<PathBuf>,
+
         /// Output file for CSV document.
         #[clap(short, long)]
         output: Option<PathBuf>,
@@ -180,7 +184,7 @@ pub async fn main() -> anyhow::Result<()> {
             let mut intl = new_intl(&file, name_prefix.clone())?;
 
             let overrides = if let Some(dir) = &overrides {
-                Some(intl.load_overrides(dir)?)
+                Some(intl.load_overrides(dir, None)?)
             } else {
                 None
             };
@@ -220,7 +224,7 @@ pub async fn main() -> anyhow::Result<()> {
             let mut intl = new_intl(&file, name_prefix.clone())?;
 
             let overrides = if let Some(dir) = &overrides {
-                Some(intl.load_overrides(dir)?)
+                Some(intl.load_overrides(dir, None)?)
             } else {
                 None
             };
@@ -278,11 +282,17 @@ pub async fn main() -> anyhow::Result<()> {
             name_prefix,
             output,
             lang,
+            overrides,
         } => {
-            let index = new_intl(file, name_prefix)?;
-            let template_lang = index.template_language();
-            let template = index.template_content()?;
-            let translated = index.list_translated()?;
+            let intl = new_intl(file, name_prefix)?;
+            let overrides = if let Some(dir) = &overrides {
+                Some(intl.load_overrides(dir, Some(vec![lang]))?)
+            } else {
+                None
+            };
+            let template_lang = intl.template_language();
+            let template = intl.template_content()?;
+            let translated = intl.list_translated()?;
             let mut rows: Vec<CsvRow> = Vec::new();
             for (language, path) in translated {
                 if language != lang {
@@ -294,6 +304,24 @@ pub async fn main() -> anyhow::Result<()> {
 
                 for entry in template.entries() {
                     if entry.is_translatable() {
+                        let correction = if let Some(overrides) = &overrides {
+                            if let Some(file) = overrides.get(&lang) {
+                                if let Some(entry) = file.lookup(entry.key().as_ref()) {
+                                    entry
+                                        .value()
+                                        .as_str()
+                                        .map(|s| s.to_string())
+                                        .unwrap_or_default()
+                                } else {
+                                    String::new()
+                                }
+                            } else {
+                                String::new()
+                            }
+                        } else {
+                            String::new()
+                        };
+
                         if let Some(target) = file.lookup(entry.key().as_ref()) {
                             rows.push(CsvRow {
                                 id: entry.key().as_ref().to_string(),
@@ -307,7 +335,7 @@ pub async fn main() -> anyhow::Result<()> {
                                     .as_str()
                                     .map(|s| s.to_string())
                                     .unwrap_or_default(),
-                                correction: String::new(),
+                                correction,
                             });
                         }
                     }

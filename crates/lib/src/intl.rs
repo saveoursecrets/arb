@@ -288,10 +288,22 @@ impl Intl {
     }
 
     /// Attempt to load override definitions.
-    pub fn load_overrides(&self, dir: impl AsRef<Path>) -> Result<HashMap<Lang, ArbFile>> {
+    ///
+    /// If a languages list is given only load the
+    /// given languages.
+    pub fn load_overrides(
+        &self,
+        dir: impl AsRef<Path>,
+        languages: Option<Vec<Lang>>,
+    ) -> Result<HashMap<Lang, ArbFile>> {
         let mut output = HashMap::new();
         let langs = self.list_directory(dir.as_ref())?;
         for (lang, path) in langs {
+            if let Some(filters) = &languages {
+                if !filters.contains(&lang) {
+                    continue;
+                }
+            }
             let content = std::fs::read_to_string(&path)?;
             let file: ArbFile = serde_json::from_str(&content)?;
             output.insert(lang, file);
