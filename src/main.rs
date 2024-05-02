@@ -1,7 +1,7 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use arb_lib::{
     deepl::{ApiOptions, DeeplApi, Lang, LanguageType},
-    ArbFile, Intl, Invalidation, TranslationOptions,
+    ArbFile, ArbKey, Intl, Invalidation, TranslationOptions,
 };
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use csv::{Writer, WriterBuilder};
+use csv::{ReaderBuilder, Writer, WriterBuilder};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CsvRow {
@@ -160,21 +160,21 @@ pub enum Command {
         #[clap(short, long)]
         name_prefix: Option<String>,
 
+        /// Column delimiter character.
+        #[clap(short, long, default_value = ",")]
+        delimiter: char,
+
         /// Target language.
         #[clap(short, long)]
         lang: Lang,
 
         /// CSV comparison with corrections.
         #[clap(short, long)]
-        csv: Lang,
+        input: PathBuf,
 
         /// Directory of human-translated overrides.
         #[clap(long)]
         overrides: Option<PathBuf>,
-
-        /// Output file for CSV document.
-        #[clap(short, long)]
-        output: Option<PathBuf>,
 
         /// Localization YAML file.
         file: PathBuf,
@@ -208,6 +208,7 @@ pub async fn main() -> anyhow::Result<()> {
         } => {
             let mut intl = new_intl(&file, name_prefix.clone())?;
 
+            let overrides = overrides.or(intl.overrides_dir().map(PathBuf::from));
             let overrides = if let Some(dir) = &overrides {
                 Some(intl.load_overrides(dir, None)?)
             } else {
@@ -248,6 +249,7 @@ pub async fn main() -> anyhow::Result<()> {
         } => {
             let mut intl = new_intl(&file, name_prefix.clone())?;
 
+            let overrides = overrides.or(intl.overrides_dir().map(PathBuf::from));
             let overrides = if let Some(dir) = &overrides {
                 Some(intl.load_overrides(dir, None)?)
             } else {
@@ -278,7 +280,6 @@ pub async fn main() -> anyhow::Result<()> {
             let api = DeeplApi::new(options);
             let langs = api.languages(language_type).await?;
             serde_json::to_writer_pretty(std::io::stdout(), &langs)?;
-            println!();
         }
         Command::Diff {
             name_prefix,
@@ -294,13 +295,11 @@ pub async fn main() -> anyhow::Result<()> {
                 output.insert(lang, diff);
             }
             serde_json::to_writer_pretty(std::io::stdout(), &output)?;
-            println!();
         }
         Command::List { file, name_prefix } => {
             let intl = new_intl(file, name_prefix)?;
             let output = intl.list_translated()?;
             serde_json::to_writer_pretty(std::io::stdout(), &output)?;
-            println!();
         }
         Command::Compare {
             file,
@@ -310,6 +309,8 @@ pub async fn main() -> anyhow::Result<()> {
             overrides,
         } => {
             let intl = new_intl(file, name_prefix)?;
+
+            let overrides = overrides.or(intl.overrides_dir().map(PathBuf::from));
             let overrides = if let Some(dir) = &overrides {
                 Some(intl.load_overrides(dir, Some(vec![lang]))?)
             } else {
@@ -380,23 +381,49 @@ pub async fn main() -> anyhow::Result<()> {
         Command::Import {
             file,
             name_prefix,
-            output,
             lang,
+            delimiter,
             overrides,
-            csv,
+            input,
         } => {
-            todo!();
+            let intl = new_intl(file, name_prefix)?;
+
+            let overrides = overrides.or(intl.overrides_dir().map(PathBuf::from));
+            let overrides = overrides.ok_or_else(|| {
+                anyhow!("no overrides, either configure overrides-dir or set --overrides")
+            })?;
+            let mut overrides_map = intl.load_overrides(&overrides, Some(vec![lang]))?;
+            let mut default = ArbFile::default();
+            let overrides_file = overrides_map.get_mut(&lang).unwrap_or_else(|| &mut default);
+            let mut rdr = ReaderBuilder::new()
+                .delimiter(delimiter as u8)
+                .from_path(input)?;
+            for result in rdr.deserialize() {
+                // Our headers don't match the field names!
+                let record: (String, String, String, String) = result?;
+                let record = CsvRow {
+                    id: record.0,
+                    source: record.1,
+                    target: record.2,
+                    correction: record.3,
+                };
+                if !record.correction.is_empty() {
+                    overrides_file.insert_translation(&ArbKey::new(&record.id), record.correction);
+                }
+            }
+
+            let output_name = intl.format_file_name(lang);
+            let output_file = overrides.join(output_name);
+
+            tracing::info!(path = %output_file.display(), "write file");
+            serde_json::to_writer_pretty(std::fs::File::create(&output_file)?, &overrides_file)?;
         }
     }
     Ok(())
 }
 
 fn new_intl(path: impl AsRef<Path>, name_prefix: Option<String>) -> Result<Intl> {
-    Ok(if let Some(name_prefix) = name_prefix {
-        Intl::new_with_prefix(path, name_prefix)?
-    } else {
-        Intl::new(path)?
-    })
+    Ok(Intl::new_with_prefix(path, name_prefix)?)
 }
 
 async fn translate_language(

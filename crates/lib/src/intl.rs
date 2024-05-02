@@ -12,6 +12,8 @@ use yaml_rust2::YamlLoader;
 
 const ARB_DIR: &str = "arb-dir";
 const TEMPLATE_ARB_FILE: &str = "template-arb-file";
+const NAME_PREFIX: &str = "name-prefix";
+const OVERRIDES_DIR: &str = "overrides-dir";
 const CACHE_FILE: &str = ".cache.json";
 
 /// Cache of template strings used for translations.
@@ -125,17 +127,18 @@ pub struct Intl {
     template_language: Lang,
     template_arb_file: String,
     name_prefix: String,
+    overrides_dir: Option<String>,
     pub(crate) cache: ArbCache,
 }
 
 impl Intl {
     /// Load the YAML file using the default file name prefix.
     pub fn new(path: impl AsRef<Path>) -> Result<Self> {
-        Self::new_with_prefix(path, "app")
+        Self::new_with_prefix(path, None)
     }
 
     /// Load the YAML file with a given file name prefix.
-    pub fn new_with_prefix(path: impl AsRef<Path>, name_prefix: impl AsRef<str>) -> Result<Self> {
+    pub fn new_with_prefix(path: impl AsRef<Path>, name_prefix: Option<String>) -> Result<Self> {
         if !path.as_ref().try_exists()? {
             return Err(Error::NoFile(path.as_ref().to_path_buf()));
         }
@@ -160,8 +163,16 @@ impl Intl {
             .as_str()
             .ok_or_else(|| Error::TemplateArbFileNotDefined(path.as_ref().to_owned()))?;
 
+        let name_prefix = if let Some(name_prefix) = doc[NAME_PREFIX].as_str() {
+            name_prefix.to_string()
+        } else {
+            name_prefix.unwrap_or_else(|| "app".to_string())
+        };
+
+        let overrides_dir = doc[OVERRIDES_DIR].as_str().map(|s| s.to_string());
+
         let stem = template_arb_file.trim_end_matches(".arb");
-        let pat = format!("{}_", name_prefix.as_ref());
+        let pat = format!("{}_", name_prefix);
         let lang_code = stem.trim_start_matches(&pat);
         let template_language: Lang = lang_code.parse()?;
 
@@ -170,8 +181,9 @@ impl Intl {
             arb_dir: arb_dir.to_owned(),
             template_arb_file: template_arb_file.to_owned(),
             template_language,
-            name_prefix: name_prefix.as_ref().to_string(),
+            name_prefix,
             cache: Default::default(),
+            overrides_dir,
         };
         index.cache = index.read_cache()?;
 
@@ -186,6 +198,16 @@ impl Intl {
     /// Template application resource bundle.
     pub fn template_arb_file(&self) -> &str {
         &self.template_arb_file
+    }
+
+    /// Prefix used to compute file names.
+    pub fn name_prefix(&self) -> &str {
+        &self.name_prefix
+    }
+
+    /// Directory for override files.
+    pub fn overrides_dir(&self) -> Option<&str> {
+        self.overrides_dir.as_ref().map(|s| &s[..])
     }
 
     /// Language of the template application resource bundle.
