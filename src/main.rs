@@ -381,7 +381,13 @@ fn write_csv_rows<W: std::io::Write>(
 ) -> Result<()> {
     let source_header = format!("Source ({})", source);
     let target_header = format!("Target ({})", target);
-    wtr.write_record(&["Identifier", &source_header, &target_header, "Correction"])?;
+    let correction_header = format!("Correction ({})", target);
+    wtr.write_record(&[
+        "Identifier",
+        &source_header,
+        &target_header,
+        &correction_header,
+    ])?;
     for row in rows {
         wtr.serialize(&row)?;
     }
