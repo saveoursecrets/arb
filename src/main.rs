@@ -154,6 +154,31 @@ pub enum Command {
         /// Localization YAML file.
         file: PathBuf,
     },
+    /// Import CSV corrections to an overrides JSON file.
+    Import {
+        /// File name prefix.
+        #[clap(short, long)]
+        name_prefix: Option<String>,
+
+        /// Target language.
+        #[clap(short, long)]
+        lang: Lang,
+
+        /// CSV comparison with corrections.
+        #[clap(short, long)]
+        csv: Lang,
+
+        /// Directory of human-translated overrides.
+        #[clap(long)]
+        overrides: Option<PathBuf>,
+
+        /// Output file for CSV document.
+        #[clap(short, long)]
+        output: Option<PathBuf>,
+
+        /// Localization YAML file.
+        file: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -261,19 +286,19 @@ pub async fn main() -> anyhow::Result<()> {
             languages,
         } => {
             let mut output = BTreeMap::new();
-            let index = new_intl(file, name_prefix)?;
-            let template = index.template_content()?;
+            let intl = new_intl(file, name_prefix)?;
+            let template = intl.template_content()?;
             for lang in languages {
-                let lang_file = index.load_or_default(lang)?;
-                let diff = template.diff(&lang_file, index.cache().get_file(&lang));
+                let lang_file = intl.load_or_default(lang)?;
+                let diff = template.diff(&lang_file, intl.cache().get_file(&lang));
                 output.insert(lang, diff);
             }
             serde_json::to_writer_pretty(std::io::stdout(), &output)?;
             println!();
         }
         Command::List { file, name_prefix } => {
-            let index = new_intl(file, name_prefix)?;
-            let output = index.list_translated()?;
+            let intl = new_intl(file, name_prefix)?;
+            let output = intl.list_translated()?;
             serde_json::to_writer_pretty(std::io::stdout(), &output)?;
             println!();
         }
@@ -351,6 +376,16 @@ pub async fn main() -> anyhow::Result<()> {
                     .from_writer(std::io::stdout());
                 write_csv_rows(wtr, rows, *template_lang, lang)?;
             }
+        }
+        Command::Import {
+            file,
+            name_prefix,
+            output,
+            lang,
+            overrides,
+            csv,
+        } => {
+            todo!();
         }
     }
     Ok(())
