@@ -10,7 +10,7 @@ cargo install arb
 
 ## Configuration
 
-Configure your Flutter `l10n.yaml` file to include a `name-prerix` and `overrides-dir` for human translations.
+Configure your Flutter `l10n.yaml` file to include a `name-prefix` and `overrides-dir` for human translations, for example:
 
 ```yaml
 arb-dir: i10n/translations
