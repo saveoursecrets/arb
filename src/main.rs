@@ -18,6 +18,7 @@ struct CsvRow {
     source: String,
     target: String,
     correction: String,
+    comment: String,
 }
 
 #[derive(Parser, Debug)]
@@ -362,6 +363,7 @@ pub async fn main() -> anyhow::Result<()> {
                                     .map(|s| s.to_string())
                                     .unwrap_or_default(),
                                 correction,
+                                comment: String::new(),
                             });
                         }
                     }
@@ -400,12 +402,13 @@ pub async fn main() -> anyhow::Result<()> {
                 .from_path(input)?;
             for result in rdr.deserialize() {
                 // Our headers don't match the field names!
-                let record: (String, String, String, String) = result?;
+                let record: (String, String, String, String, String) = result?;
                 let record = CsvRow {
                     id: record.0,
                     source: record.1,
                     target: record.2,
                     correction: record.3,
+                    comment: record.4,
                 };
                 if !record.correction.is_empty() {
                     overrides_file.insert_translation(&ArbKey::new(&record.id), record.correction);
@@ -477,6 +480,7 @@ fn write_csv_rows<W: std::io::Write>(
         &source_header,
         &target_header,
         &correction_header,
+        "Comment",
     ])?;
     for row in rows {
         wtr.serialize(&row)?;
