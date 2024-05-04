@@ -8,6 +8,20 @@ Command line tool to localize Flutter apps using the [DeepL][] translation API.
 cargo install arb
 ```
 
+## Configuration
+
+Configure your Flutter `l10n.yaml` file to include a `name-prefix` and `overrides-dir` for human translations, for example:
+
+```yaml
+arb-dir: i10n/translations
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+nullable-getter: false
+untranslated-messages-file: untranslated.txt
+overrides-dir: i10n/overrides
+name-prefix: app
+```
+
 ## Usage
 
 Convert all the strings from the template language into French and write the translations to `app_fr.arb`:
