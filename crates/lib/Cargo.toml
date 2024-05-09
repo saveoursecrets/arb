@@ -3,6 +3,7 @@ name = "arb-lib"
 version = "0.1.0"
 edition = "2021"
 description = "Localize flutter apps with DeepL AI translations"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 serde.workspace = true

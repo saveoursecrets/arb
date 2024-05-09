@@ -2,6 +2,8 @@
 name = "deepl-pro"
 version = "0.1.0"
 edition = "2021"
+description = "Client for the DeepL translation API"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 reqwest = { version = "0.12", features = [ "json" ]}
